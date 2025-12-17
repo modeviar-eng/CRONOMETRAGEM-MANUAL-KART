@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KartTiming Pro - Firebase Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #121212; --bg-panel: #1e1e1e; --primary: #00e676;
+            --secondary: #2979ff; --danger: #ff1744; --warning: #ffea00;
+            --text-main: #ffffff; --text-muted: #b0b0b0;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: 'Exo 2', sans-serif; background-color: var(--bg-dark); color: var(--text-main); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        .sidebar { width: 80px; background-color: #000; display: flex; flex-direction: column; align-items: center; padding-top: 20px; border-right: 1px solid #333; transition: width 0.3s; z-index: 10; }
+        .sidebar:hover { width: 200px; }
+        .nav-btn { background: none; border: none; color: var(--text-muted); width: 100%; padding: 15px; text-align: left; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; gap: 15px; transition: 0.2s; overflow: hidden; white-space: nowrap; }
+        .nav-btn:hover, .nav-btn.active { color: var(--primary); background-color: rgba(0, 230, 118, 0.1); border-left: 3px solid var(--primary); }
+        .main-content { flex: 1; padding: 20px; overflow-y: auto; position: relative; }
+        .tab-content { display: none; } .tab-content.active { display: block; }
+        .glass-panel { background: var(--bg-panel); padding: 20px; border-radius: 12px; border: 1px solid #333; margin-bottom: 20px; }
+        .form-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
+        input, select { background: #2a2a2a; border: 1px solid #444; color: white; padding: 10px; border-radius: 6px; flex: 1; }
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; text-transform: uppercase; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: #000; } .btn-danger { background: var(--danger); color: white; }
+        .btn-warn { background: var(--warning); color: #000; } .btn-blue { background: var(--secondary); color: white; }
+        #mainTimer { font-family: 'Roboto Mono', monospace; font-size: 4rem; text-align: center; text-shadow: 0 0 10px var(--primary); margin: 20px 0; }
+        .kart-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; }
+        .kart-btn { background: #2a2a2a; border: 1px solid #444; border-radius: 10px; height: 120px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; position: relative; }
+        .kart-btn.flash { background: var(--primary); color: #000; }
+        .k-num { font-size: 2.5rem; font-weight: bold; color: var(--warning); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th { text-align: left; background: #333; padding: 10px; color: var(--primary); }
+        td { padding: 10px; border-bottom: 1px solid #333; }
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); }
+        .modal-content { background: var(--bg-panel); margin: 10% auto; padding: 25px; width: 400px; border-radius: 10px; border: 1px solid var(--primary); }
+        #shareableResult { position: fixed; top: -9999px; left: -9999px; width: 1100px; background: #121212; padding: 40px; color: white; border: 5px solid var(--primary); visibility: hidden; }
+        .legend { margin-top: 20px; font-size: 10px; color: #aaa; display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; border-top: 1px solid #333; padding-top: 10px; }
+    </style>
+</head>
+<body>
+
+<nav class="sidebar">
+    <button class="nav-btn active" onclick="switchTab('race')"><span>⏱️ Corrida</span></button>
+    <button class="nav-btn" onclick="switchTab('circuits')"><span>🛣️ Circuitos</span></button>
+    <button class="nav-btn" onclick="switchTab('results')"><span>🏆 Resultados</span></button>
+</nav>
+
+<div class="main-content">
+    <div id="tab-race" class="tab-content active">
+        <h2>Painel de Controle</h2>
+        <div class="glass-panel">
+            <div class="form-row">
+                <select id="raceCircuitSelect"><option value="">Carregando...</option></select>
+                <select id="raceMode"><option value="corrida">Modo: Corrida</option><option value="tomada">Modo: Tomada de Tempo</option></select>
+                <input type="text" id="raceNameInput" placeholder="Nome da Bateria">
+            </div>
+            <div class="form-row">
+                <input type="number" id="addKartNum" placeholder="Nº Kart" style="flex:0.3">
+                <input type="text" id="addKartName" placeholder="Piloto">
+                <button class="btn btn-blue" onclick="addDriverToGrid()">+ Adicionar</button>
+            </div>
+        </div>
+        <div class="glass-panel" style="text-align: center;">
+            <div id="mainTimer">00:00.000</div>
+            <button id="btnStart" class="btn btn-primary" onclick="toggleStart()">INICIAR</button>
+            <button id="btnPause" class="btn btn-warn" onclick="togglePause()" disabled>PAUSAR</button>
+            <button id="btnFinish" class="btn btn-danger" onclick="finishRace()" disabled>FINALIZAR</button>
+            <button id="btnNew" class="btn btn-blue" onclick="newRace()">NOVA CORRIDA</button>
+        </div>
+        <div id="kartGrid" class="kart-grid"></div>
+        <table id="liveTable" style="margin-top:20px;">
+            <thead><tr><th>Pos</th><th>Kart</th><th>Piloto</th><th>Voltas</th><th>Melhor</th><th>Ação</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div id="tab-circuits" class="tab-content">
+        <h2>Cadastro de Circuitos</h2>
+        <div class="glass-panel">
+            <input type="hidden" id="editCircuitId">
+            <div class="form-row">
+                <input type="text" id="circuitName" placeholder="Nome do Traçado">
+                <input type="number" id="circuitLength" placeholder="Extensão (m)">
+                <button class="btn btn-primary" id="btnSaveCircuit" onclick="saveCircuit()">Salvar Circuito</button>
+            </div>
+        </div>
+        <table id="circuitsTable"><thead><tr><th>Nome</th><th>Tamanho</th><th>Ação</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div id="tab-results" class="tab-content">
+        <h2>Histórico de Baterias</h2>
+        <div class="glass-panel"><label>Filtrar Dia:</label><input type="date" id="filterDate" onchange="loadHistory()"></div>
+        <div id="finalResultContainer"></div>
+        <button class="btn btn-blue" onclick="generateImage()">📸 Baixar Resultado</button>
+        <ul id="historyList" style="margin-top:20px; padding:0"></ul>
+    </div>
+</div>
+
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <h3>Editar Piloto</h3>
+        <input type="hidden" id="editDriverId">
+        <label style="font-size:0.8rem; color:#aaa">Posição Forçada (Deixe vazio para automático)</label>
+        <input type="number" id="editPos" placeholder="Ex: 1" style="width:100%; margin-bottom:10px; border: 1px solid var(--primary);">
+        <input type="text" id="editName" placeholder="Nome" style="width:100%; margin-bottom:10px">
+        <input type="number" id="editNum" placeholder="Kart" style="width:100%; margin-bottom:10px">
+        <input type="number" id="editLaps" placeholder="Voltas" style="width:100%; margin-bottom:10px">
+        <input type="text" id="editBest" placeholder="Melhor (MM:SS.mmm)" style="width:100%; margin-bottom:10px">
+        <button class="btn btn-primary" onclick="saveDriverEdit()">Salvar</button>
+        <button class="btn" onclick="document.getElementById('editModal').style.display='none'">Fechar</button>
+    </div>
+</div>
+
+<div id="shareableResult">
+    <h1 id="shareRaceName" style="text-align:center; color:var(--primary)">RESULTADO DA CORRIDA</h1>
+    <h3 id="shareCircuitInfo" style="text-align:center; margin-bottom:20px;">Pista: - | Extensão: -</h3>
+    <table style="width:100%; color:white; font-size:12px;">
+        <thead><tr style="background:var(--primary); color:black"><th>POS</th><th>PILOTO</th><th>MV</th><th>TMV</th><th>TT</th><th>DL</th><th>DA</th><th>TV</th><th>VM</th></tr></thead>
+        <tbody id="shareTableBody"></tbody>
+    </table>
+    <div class="legend">
+        <span><b>POS:</b> Posição</span><span><b>MV:</b> Volta da Melhor</span><span><b>TMV:</b> Tempo Melhor Volta</span>
+        <span><b>TT:</b> Tempo Total</span><span><b>DL:</b> Dif. Lider</span><span><b>DA:</b> Dif. Anterior</span>
+        <span><b>TV:</b> Total Voltas</span><span><b>VM:</b> Velocidade Média</span>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, orderBy, query, Timestamp, doc, updateDoc, where } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCXFxcygBteUYgUjuobsTSYVQRIJEgUFjA", authDomain: "cronometragem-kart.firebaseapp.com",
+        projectId: "cronometragem-kart", storageBucket: "cronometragem-kart.firebasestorage.app",
+        messagingSenderId: "494692374520", appId: "1:494692374520:web:d84624be4cc0b3d068280d"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let state = { drivers: [], raceStartTime: 0, elapsedTime: 0, isRunning: false, timerInterval: null, circuit: null };
+
+    window.switchTab = (tab) => {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        const t = document.getElementById(`tab-${tab}`); if(t) t.classList.add('active');
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        if (window.event?.currentTarget?.tagName === 'BUTTON') window.event.currentTarget.classList.add('active');
+        else {
+            const btns = document.querySelectorAll('.nav-btn');
+            const idx = tab === 'race' ? 0 : (tab === 'circuits' ? 1 : 2);
+            if(btns[idx]) btns[idx].classList.add('active');
+        }
+    };
+
+    window.newRace = () => {
+        if(!confirm("Limpar dados para nova bateria?")) return;
+        state.drivers = []; state.elapsedTime = 0; state.isRunning = false;
+        clearInterval(state.timerInterval);
+        document.getElementById('mainTimer').innerText = "00:00.000";
+        document.getElementById('btnStart').style.display = 'inline-block';
+        updateUI();
+    };
+
+    window.addDriverToGrid = () => {
+        const n = document.getElementById('addKartNum').value, p = document.getElementById('addKartName').value;
+        if(n && p) { state.drivers.push({ id: Date.now(), number: n, name: p, laps: [], manualBest: null, manualLaps: null, manualPosition: null }); updateUI(); }
+        document.getElementById('addKartNum').value = ""; document.getElementById('addKartName').value = "";
+    };
+
+    function updateUI() {
+        const grid = document.getElementById('kartGrid'); grid.innerHTML = '';
+        state.drivers.forEach((d) => {
+            const b = document.createElement('div'); b.className = 'kart-btn';
+            b.innerHTML = `<span class="k-num">#${d.number}</span><span>${d.name}</span>`;
+            b.onclick = () => { if(state.isRunning) { d.laps.push(state.elapsedTime); b.classList.add('flash'); setTimeout(()=>b.classList.remove('flash'),200); renderLiveTable(); } };
+            grid.appendChild(b);
+        });
+        renderLiveTable();
+    }
+
+    window.toggleStart = () => {
+        const cVal = document.getElementById('raceCircuitSelect').value;
+        if(!cVal) return alert("Selecione a pista");
+        state.circuit = JSON.parse(cVal); state.isRunning = true;
+        state.raceStartTime = Date.now() - state.elapsedTime;
+        state.timerInterval = setInterval(() => { state.elapsedTime = Date.now() - state.raceStartTime; document.getElementById('mainTimer').innerText = formatTime(state.elapsedTime); }, 33);
+        document.getElementById('btnStart').style.display = 'none'; document.getElementById('btnPause').disabled = false; document.getElementById('btnFinish').disabled = false;
+    };
+
+    window.togglePause = () => { state.isRunning = false; clearInterval(state.timerInterval); document.getElementById('btnStart').style.display = 'inline-block'; };
+
+    window.finishRace = async () => {
+        if(!confirm("Salvar resultados?")) return;
+        togglePause();
+        const results = calculateFinalStats();
+        await addDoc(collection(db, "races"), { raceName: document.getElementById('raceNameInput').value || "Bateria", circuit: state.circuit, date: Timestamp.now(), drivers: results });
+        alert("Bateria salva!"); loadHistory();
+    };
+
+    // Função auxiliar para converter string de tempo editada (MM:SS.mmm) de volta para milissegundos
+    function parseTimeStr(str) {
+        if(!str) return Infinity;
+        try {
+            const [min, rest] = str.split(':');
+            const [sec, ms] = rest.split('.');
+            return (parseInt(min) * 60000) + (parseInt(sec) * 1000) + parseInt(ms || 0);
+        } catch(e) { return Infinity; }
+    }
+
+    function calculateFinalStats() {
+        const trackLen = parseFloat(state.circuit?.length || 0);
+        const mode = document.getElementById('raceMode').value;
+        
+        // 1. Calcular estatísticas base
+        let stats = state.drivers.map(d => {
+            let bestLapMs = Infinity, bestLapIdx = 0, prevTime = 0;
+            d.laps.forEach((curr, i) => { let lap = curr - prevTime; if(lap < bestLapMs) { bestLapMs = lap; bestLapIdx = i + 1; } prevTime = curr; });
+            
+            // Se houver um tempo manual editado, usamos ele para o cálculo de ordenação
+            if(d.manualBest) {
+                bestLapMs = parseTimeStr(d.manualBest);
+            }
+
+            const totalV = d.manualLaps !== null ? d.manualLaps : d.laps.length;
+            const totalMs = d.laps.length > 0 ? d.laps[d.laps.length-1] : 0;
+            const avgSpd = (bestLapMs !== Infinity && trackLen > 0) ? (trackLen / (bestLapMs / 1000)) * 3.6 : 0;
+            
+            return { 
+                id: d.id, name: d.name, number: d.number, 
+                laps: totalV, bestLapIdx, bestLapMs, 
+                bestLapDisplay: d.manualBest || formatTime(bestLapMs), 
+                totalMs, avgSpd,
+                manualPosition: d.manualPosition
+            };
+        });
+
+        // 2. Ordenação Primária: Tomada de Tempo usa o bestLapMs (agora considerando edições)
+        if(mode === "tomada") {
+            stats.sort((a,b) => a.bestLapMs - b.bestLapMs);
+        } else {
+            stats.sort((a,b) => b.laps - a.laps || a.totalMs - b.totalMs);
+        }
+
+        // 3. Reordenação com base na "Posição Manual" (Splice Logic)
+        if (stats.some(s => s.manualPosition !== null && s.manualPosition !== "")) {
+            const fixed = stats.filter(s => s.manualPosition).sort((a,b) => a.manualPosition - b.manualPosition);
+            let floating = stats.filter(s => !s.manualPosition);
+            
+            let finalOrder = [];
+            for(let i = 0; i < stats.length; i++) {
+                const targetRank = i + 1;
+                const forcedDriver = fixed.find(f => parseInt(f.manualPosition) === targetRank);
+                if (forcedDriver) {
+                    finalOrder.push(forcedDriver);
+                } else {
+                    if (floating.length > 0) finalOrder.push(floating.shift());
+                }
+            }
+            finalOrder = [...finalOrder, ...floating];
+            const remainingFixed = fixed.filter(f => !finalOrder.includes(f));
+            finalOrder = [...finalOrder, ...remainingFixed];
+            stats = finalOrder;
+        }
+
+        // 4. Calcular Diffs
+        return stats.map((s, i) => ({ 
+            ...s, 
+            dl: i === 0 ? "-" : (s.laps < stats[0].laps ? `+${stats[0].laps - s.laps}v` : `+${formatTime(s.totalMs - stats[0].totalMs)}`), 
+            da: i === 0 ? "-" : (s.laps < stats[i-1].laps ? `+${stats[i-1].laps - s.laps}v` : `+${formatTime(s.totalMs - stats[i-1].totalMs)}`) 
+        }));
+    }
+
+    function renderLiveTable() {
+        const tb = document.querySelector('#liveTable tbody'); tb.innerHTML = '';
+        calculateFinalStats().forEach((d, i) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${i+1}º</td><td>#${d.number}</td><td>${d.name}</td><td>${d.laps}</td><td>${d.bestLapDisplay}</td><td><button class='btn-edit' data-id='${d.id}'>✏️</button></td>`;
+            tr.querySelector('.btn-edit').onclick = () => openEditModal(d.id);
+            tb.appendChild(tr);
+        });
+    }
+
+    window.openEditModal = (id) => {
+        const d = state.drivers.find(x => x.id == id); if(!d) return;
+        document.getElementById('editDriverId').value = d.id;
+        document.getElementById('editName').value = d.name;
+        document.getElementById('editNum').value = d.number;
+        document.getElementById('editLaps').value = d.manualLaps !== null ? d.manualLaps : d.laps.length;
+        document.getElementById('editBest').value = d.manualBest || "";
+        document.getElementById('editPos').value = d.manualPosition || ""; 
+        document.getElementById('editModal').style.display = 'block';
+    };
+
+    window.saveDriverEdit = () => {
+        const id = document.getElementById('editDriverId').value;
+        const d = state.drivers.find(x => x.id == id);
+        if(d) {
+            d.name = document.getElementById('editName').value;
+            d.number = document.getElementById('editNum').value;
+            d.manualLaps = parseInt(document.getElementById('editLaps').value);
+            d.manualBest = document.getElementById('editBest').value;
+            const posVal = document.getElementById('editPos').value;
+            d.manualPosition = posVal ? parseInt(posVal) : null;
+
+            document.getElementById('editModal').style.display = 'none';
+            updateUI();
+        }
+    };
+
+    window.saveCircuit = async () => {
+        const id = document.getElementById('editCircuitId').value, n = document.getElementById('circuitName').value, l = document.getElementById('circuitLength').value;
+        if(id) await updateDoc(doc(db, "circuits", id), { name: n, length: l });
+        else await addDoc(collection(db, "circuits"), { name: n, length: l, createdAt: Timestamp.now() });
+        loadCircuits();
+    };
+
+    window.loadCircuits = async () => {
+        const snap = await getDocs(collection(db, "circuits")), sel = document.getElementById('raceCircuitSelect'), tb = document.querySelector('#circuitsTable tbody');
+        sel.innerHTML = '<option value="">Selecione...</option>'; tb.innerHTML = '';
+        snap.forEach(d => {
+            const data = d.data(); sel.innerHTML += `<option value='${JSON.stringify({id: d.id, ...data})}'>${data.name}</option>`;
+            tb.innerHTML += `<tr><td>${data.name}</td><td>${data.length}m</td><td><button onclick='editCircuit("${d.id}", ${JSON.stringify(data)})'>✏️</button></td></tr>`;
+        });
+    };
+
+    window.editCircuit = (id, data) => { document.getElementById('editCircuitId').value = id; document.getElementById('circuitName').value = data.name; document.getElementById('circuitLength').value = data.length; };
+
+    window.loadHistory = async () => {
+        const dateFilter = document.getElementById('filterDate').value;
+        let qry = query(collection(db, "races"), orderBy("date", "desc"));
+        if(dateFilter) {
+            const start = new Date(dateFilter + "T00:00:00"), end = new Date(dateFilter + "T23:59:59");
+            qry = query(collection(db, "races"), where("date", ">=", start), where("date", "<=", end));
+        }
+        const snap = await getDocs(qry), list = document.getElementById('historyList'); list.innerHTML = '';
+        snap.forEach(d => {
+            const data = d.data(); const li = document.createElement('li');
+            li.innerHTML = `${data.date.toDate().toLocaleTimeString()} - ${data.raceName} <button class="btn btn-blue" onclick='viewResult(${JSON.stringify(data)})'>Ver</button>`;
+            list.appendChild(li);
+        });
+    };
+
+    window.viewResult = (data) => {
+        document.getElementById('shareRaceName').innerText = data.raceName;
+        document.getElementById('shareCircuitInfo').innerText = `Pista: ${data.circuit.name} | Extensão: ${data.circuit.length}m`;
+        const tb = document.getElementById('shareTableBody'); tb.innerHTML = '';
+        data.drivers.forEach((d, i) => {
+            tb.innerHTML += `<tr><td>${i+1}º</td><td>#${d.number} ${d.name}</td><td>${d.bestLapIdx}</td><td>${d.bestLapDisplay}</td><td>${formatTime(d.totalMs)}</td><td>${d.dl}</td><td>${d.da}</td><td>${d.laps}</td><td>${d.avgSpd.toFixed(1)}</td></tr>`;
+        });
+        document.getElementById('finalResultContainer').innerHTML = `<h3 style='color:var(--primary)'>Exibindo: ${data.raceName}</h3>`;
+    };
+
+    window.generateImage = async () => {
+        const el = document.getElementById('shareableResult'); el.style.visibility = "visible"; el.style.position = "fixed"; el.style.top = "0"; el.style.left = "0"; el.style.zIndex = "-100";
+        const canvas = await html2canvas(el, { backgroundColor: "#121212", scale: 2 });
+        const link = document.createElement('a'); link.download = 'resultado.png'; link.href = canvas.toDataURL(); link.click();
+        el.style.visibility = "hidden"; el.style.top = "-9999px";
+    };
+
+    function formatTime(ms) {
+        if(!ms || ms === Infinity || ms < 0) return "00:00.000";
+        let m = Math.floor(ms/60000), s = Math.floor((ms%60000)/1000), ms_ = Math.floor(ms%1000);
+        return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}.${ms_.toString().padStart(3,'0')}`;
+    }
+
+    window.onload = () => { loadCircuits(); loadHistory(); };
+</script>
+</body>
+</html>
