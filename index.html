@@ -16,79 +16,57 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: 'Exo 2', sans-serif; background-color: var(--bg-dark); color: var(--text-main); margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        /* Sidebar Desktop */
         .sidebar { width: 80px; background-color: #000; display: flex; flex-direction: column; align-items: center; padding-top: 20px; border-right: 1px solid #333; transition: width 0.3s; z-index: 10; flex-shrink: 0; }
         .sidebar:hover { width: 200px; }
         .nav-btn { background: none; border: none; color: var(--text-muted); width: 100%; padding: 15px; text-align: left; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; gap: 15px; transition: 0.2s; overflow: hidden; white-space: nowrap; }
         .nav-btn:hover, .nav-btn.active { color: var(--primary); background-color: rgba(0, 230, 118, 0.1); border-left: 3px solid var(--primary); }
         
-        /* Main Content */
         .main-content { flex: 1; padding: 20px; overflow-y: auto; position: relative; }
-        .tab-content { display: none; padding-bottom: 80px; } .tab-content.active { display: block; } /* Padding bottom para scroll no mobile */
+        .tab-content { display: none; padding-bottom: 80px; } .tab-content.active { display: block; }
         
-        /* UI Elements */
         .glass-panel { background: var(--bg-panel); padding: 20px; border-radius: 12px; border: 1px solid #333; margin-bottom: 20px; }
         .form-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
         input, select { background: #2a2a2a; border: 1px solid #444; color: white; padding: 12px; border-radius: 6px; flex: 1; font-size: 1rem; }
         
-        /* Botões */
         .btn { padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; text-transform: uppercase; transition: 0.2s; font-size: 0.9rem; }
         .btn-primary { background: var(--primary); color: #000; } .btn-danger { background: var(--danger); color: white; }
         .btn-warn { background: var(--warning); color: #000; } .btn-blue { background: var(--secondary); color: white; }
         
         #mainTimer { font-family: 'Roboto Mono', monospace; font-size: 4rem; text-align: center; text-shadow: 0 0 10px var(--primary); margin: 20px 0; line-height: 1; }
         
-        /* Grid de Karts */
         .kart-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; }
         .kart-btn { background: #2a2a2a; border: 1px solid #444; border-radius: 10px; height: 120px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; position: relative; user-select: none; }
         .kart-btn:active { transform: scale(0.98); }
-        .kart-btn.flash { background: var(--primary); color: #000; }
+        .kart-btn.flash { background: var(--primary) !important; color: #000 !important; }
         .k-num { font-size: 2.5rem; font-weight: bold; color: var(--warning); }
         
-        /* Tabelas */
         .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         table { width: 100%; border-collapse: collapse; font-size: 0.9rem; white-space: nowrap; }
         th { text-align: left; background: #333; padding: 12px 10px; color: var(--primary); }
         td { padding: 10px; border-bottom: 1px solid #333; }
         
-        /* Modal */
         .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); }
         .modal-content { background: var(--bg-panel); margin: 10% auto; padding: 25px; width: 400px; border-radius: 10px; border: 1px solid var(--primary); max-width: 90%; }
         
-        /* Share Image Hidden */
         #shareableResult { position: fixed; top: -9999px; left: -9999px; width: 1100px; background: #121212; padding: 40px; color: white; border: 5px solid var(--primary); visibility: hidden; }
         .legend { margin-top: 20px; font-size: 10px; color: #aaa; display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; border-top: 1px solid #333; padding-top: 10px; }
 
-        /* ================= MOBILE CSS ================= */
         @media (max-width: 768px) {
             body { flex-direction: column; height: 100vh; }
-            
-            /* Sidebar vira Topbar */
             .sidebar { width: 100%; height: auto; flex-direction: row; justify-content: space-around; padding: 10px 0; border-right: none; border-bottom: 1px solid #333; }
-            .sidebar:hover { width: 100%; } /* Remove expansão no mobile */
+            .sidebar:hover { width: 100%; }
             .nav-btn { width: auto; padding: 8px 15px; border-left: none; border-bottom: 3px solid transparent; font-size: 0.9rem; flex-direction: column; gap: 5px; }
             .nav-btn.active { background: transparent; border-left: none; border-bottom: 3px solid var(--primary); color: var(--primary); }
             .nav-btn span { display: block; font-size: 0.75rem; }
-
             .main-content { padding: 15px; }
-            
-            /* Ajustes de Formulário */
             .form-row { flex-direction: column; gap: 10px; }
             .form-row input, .form-row select, .form-row button { width: 100%; flex: none; }
-            
-            /* Timer Responsivo */
             #mainTimer { font-size: 15vw; margin: 10px 0; }
-            
-            /* Botões de Ação Empilhados */
             .glass-panel button { width: 100%; margin-bottom: 10px; }
             .glass-panel button:last-child { margin-bottom: 0; }
-            
-            /* Grid ajustada para telas pequenas */
             .kart-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
             .kart-btn { height: 100px; }
             .k-num { font-size: 2rem; }
-            
-            /* Modal Responsivo */
             .modal-content { margin: 20% auto; width: 90%; }
         }
     </style>
@@ -199,6 +177,37 @@
 
     let state = { drivers: [], raceStartTime: 0, elapsedTime: 0, isRunning: false, timerInterval: null, circuit: null };
 
+    // --- NOVA FUNCIONALIDADE: TECLADO ---
+    document.addEventListener('keydown', (e) => {
+        // Ignora se o usuário estiver digitando em um campo de texto (input/select)
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+        
+        // Verifica se é uma tecla de número (0-9)
+        if (e.key >= '0' && e.key <= '9') {
+            const kartNumber = e.key;
+            const driver = state.drivers.find(d => d.number === kartNumber);
+            
+            if (driver && state.isRunning) {
+                registerLap(driver.id);
+            }
+        }
+    });
+
+    function registerLap(driverId) {
+        const d = state.drivers.find(x => x.id === driverId);
+        if (d) {
+            d.laps.push(state.elapsedTime);
+            // Efeito visual no botão
+            const btn = document.querySelector(`[data-kart-id="${driverId}"]`);
+            if (btn) {
+                btn.classList.add('flash');
+                setTimeout(() => btn.classList.remove('flash'), 200);
+            }
+            renderLiveTable();
+        }
+    }
+    // ------------------------------------
+
     window.switchTab = (tab) => {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         const t = document.getElementById(`tab-${tab}`); if(t) t.classList.add('active');
@@ -229,10 +238,11 @@
     function updateUI() {
         const grid = document.getElementById('kartGrid'); grid.innerHTML = '';
         state.drivers.forEach((d) => {
-            const b = document.createElement('div'); b.className = 'kart-btn';
+            const b = document.createElement('div'); 
+            b.className = 'kart-btn';
+            b.setAttribute('data-kart-id', d.id); // Identificador para o efeito do teclado
             b.innerHTML = `<span class="k-num">#${d.number}</span><span>${d.name}</span>`;
-            // Melhoria para touch: usar ontouchstart ou onclick funciona bem, mantido onclick
-            b.onclick = () => { if(state.isRunning) { d.laps.push(state.elapsedTime); b.classList.add('flash'); setTimeout(()=>b.classList.remove('flash'),200); renderLiveTable(); } };
+            b.onclick = () => { if(state.isRunning) registerLap(d.id); };
             grid.appendChild(b);
         });
         renderLiveTable();
