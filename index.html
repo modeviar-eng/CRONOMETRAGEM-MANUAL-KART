@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KartTiming Pro - Firebase Edition</title>
+    <title>KartTiming Pro - Firebase Realtime</title>
     <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
@@ -32,7 +32,7 @@
         .btn-primary { background: var(--primary); color: #000; } .btn-danger { background: var(--danger); color: white; }
         .btn-warn { background: var(--warning); color: #000; } .btn-blue { background: var(--secondary); color: white; }
         
-        #mainTimer { font-family: 'Roboto Mono', monospace; font-size: 4rem; text-align: center; text-shadow: 0 0 10px var(--primary); margin: 20px 0; line-height: 1; }
+        #mainTimer, #liveTimer { font-family: 'Roboto Mono', monospace; font-size: 4rem; text-align: center; text-shadow: 0 0 10px var(--primary); margin: 20px 0; line-height: 1; }
         
         .kart-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; }
         .kart-btn { background: #2a2a2a; border: 1px solid #444; border-radius: 10px; height: 120px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; position: relative; user-select: none; }
@@ -44,6 +44,10 @@
         table { width: 100%; border-collapse: collapse; font-size: 0.9rem; white-space: nowrap; }
         th { text-align: left; background: #333; padding: 12px 10px; color: var(--primary); }
         td { padding: 10px; border-bottom: 1px solid #333; }
+        
+        /* Estilos da tabela Live/Resultados */
+        .live-table th { background: var(--primary); color: black; font-weight: bold; }
+        .live-table tr:nth-child(even) { background-color: rgba(255,255,255,0.05); }
         
         .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); }
         .modal-content { background: var(--bg-panel); margin: 10% auto; padding: 25px; width: 400px; border-radius: 10px; border: 1px solid var(--primary); max-width: 90%; }
@@ -61,7 +65,7 @@
             .main-content { padding: 15px; }
             .form-row { flex-direction: column; gap: 10px; }
             .form-row input, .form-row select, .form-row button { width: 100%; flex: none; }
-            #mainTimer { font-size: 15vw; margin: 10px 0; }
+            #mainTimer, #liveTimer { font-size: 15vw; margin: 10px 0; }
             .glass-panel button { width: 100%; margin-bottom: 10px; }
             .glass-panel button:last-child { margin-bottom: 0; }
             .kart-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -75,6 +79,7 @@
 
 <nav class="sidebar">
     <button class="nav-btn active" onclick="switchTab('race')"><span>⏱️ Corrida</span></button>
+    <button class="nav-btn" onclick="switchTab('live')"><span>📺 Ao Vivo</span></button>
     <button class="nav-btn" onclick="switchTab('circuits')"><span>🛣️ Circuitos</span></button>
     <button class="nav-btn" onclick="switchTab('results')"><span>🏆 Resultados</span></button>
 </nav>
@@ -107,6 +112,31 @@
                 <thead><tr><th>Pos</th><th>Kart</th><th>Piloto</th><th>Voltas</th><th>Melhor</th><th>Ação</th></tr></thead>
                 <tbody></tbody>
             </table>
+        </div>
+    </div>
+
+    <div id="tab-live" class="tab-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--primary); padding-bottom:10px; margin-bottom:20px;">
+            <h2 style="margin:0; color:var(--primary)" id="liveRaceTitle">AGUARDANDO CORRIDA...</h2>
+            <div style="text-align:right; font-size:0.9rem; color:#aaa" id="liveCircuitInfo"></div>
+        </div>
+        
+        <div id="liveTimer" style="color:white;">00:00.000</div>
+        
+        <div class="table-container">
+            <table class="live-table">
+                <thead>
+                    <tr><th>POS</th><th>PILOTO</th><th>MV</th><th>TMV</th><th>TT</th><th>DL</th><th>DA</th><th>TV</th><th>VM</th></tr>
+                </thead>
+                <tbody id="liveViewBody">
+                    <tr><td colspan="9" style="text-align:center; padding:20px;">Aguardando dados da cronometragem...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="legend">
+            <span><b>POS:</b> Posição</span><span><b>MV:</b> Volta da Melhor</span><span><b>TMV:</b> Tempo Melhor Volta</span>
+            <span><b>TT:</b> Tempo Total</span><span><b>DL:</b> Dif. Lider</span><span><b>DA:</b> Dif. Anterior</span>
+            <span><b>TV:</b> Total Voltas</span><span><b>VM:</b> Velocidade Média</span>
         </div>
     </div>
 
@@ -165,7 +195,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, orderBy, query, Timestamp, doc, updateDoc, where } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, orderBy, query, Timestamp, doc, updateDoc, where, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyCXFxcygBteUYgUjuobsTSYVQRIJEgUFjA", authDomain: "cronometragem-kart.firebaseapp.com",
@@ -176,17 +206,35 @@
     const db = getFirestore(app);
 
     let state = { drivers: [], raceStartTime: 0, elapsedTime: 0, isRunning: false, timerInterval: null, circuit: null };
+    let liveListener = null;
+    let liveTimerInterval = null;
 
-    // --- NOVA FUNCIONALIDADE: TECLADO ---
+    // --- SINCRONIZAÇÃO LIVE ---
+    // Envia dados para o Firestore 'live/current'
+    async function syncLive() {
+        const raceName = document.getElementById('raceNameInput').value || "Bateria Ao Vivo";
+        const mode = document.getElementById('raceMode').value;
+        const payload = {
+            raceName: raceName,
+            drivers: state.drivers,
+            startTime: state.raceStartTime, // Timestamp de quando começou (ou delta)
+            elapsedAtPause: state.elapsedTime, // Tempo acumulado se pausado
+            isRunning: state.isRunning,
+            circuit: state.circuit,
+            mode: mode,
+            timestamp: Date.now()
+        };
+        try {
+            await setDoc(doc(db, "live", "current"), payload);
+        } catch(e) { console.error("Erro sync:", e); }
+    }
+
+    // --- TECLADO E LAP ---
     document.addEventListener('keydown', (e) => {
-        // Ignora se o usuário estiver digitando em um campo de texto (input/select)
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
-        
-        // Verifica se é uma tecla de número (0-9)
         if (e.key >= '0' && e.key <= '9') {
             const kartNumber = e.key;
             const driver = state.drivers.find(d => d.number === kartNumber);
-            
             if (driver && state.isRunning) {
                 registerLap(driver.id);
             }
@@ -197,26 +245,34 @@
         const d = state.drivers.find(x => x.id === driverId);
         if (d) {
             d.laps.push(state.elapsedTime);
-            // Efeito visual no botão
             const btn = document.querySelector(`[data-kart-id="${driverId}"]`);
             if (btn) {
                 btn.classList.add('flash');
                 setTimeout(() => btn.classList.remove('flash'), 200);
             }
             renderLiveTable();
+            syncLive(); // Sincroniza após registrar volta
         }
     }
-    // ------------------------------------
 
     window.switchTab = (tab) => {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         const t = document.getElementById(`tab-${tab}`); if(t) t.classList.add('active');
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        
         if (window.event?.currentTarget?.tagName === 'BUTTON') window.event.currentTarget.classList.add('active');
         else {
+            const map = { 'race':0, 'live':1, 'circuits':2, 'results':3 };
             const btns = document.querySelectorAll('.nav-btn');
-            const idx = tab === 'race' ? 0 : (tab === 'circuits' ? 1 : 2);
-            if(btns[idx]) btns[idx].classList.add('active');
+            if(btns[map[tab]]) btns[map[tab]].classList.add('active');
+        }
+
+        // Se entrar na aba Live, ativa o listener
+        if(tab === 'live') {
+            if(!liveListener) initLiveView();
+        } else {
+            // Opcional: Desligar listener se sair da aba para economizar dados
+            // if(liveListener) { liveListener(); liveListener = null; }
         }
     };
 
@@ -227,11 +283,16 @@
         document.getElementById('mainTimer').innerText = "00:00.000";
         document.getElementById('btnStart').style.display = 'inline-block';
         updateUI();
+        syncLive(); // Limpa no servidor também
     };
 
     window.addDriverToGrid = () => {
         const n = document.getElementById('addKartNum').value, p = document.getElementById('addKartName').value;
-        if(n && p) { state.drivers.push({ id: Date.now(), number: n, name: p, laps: [], manualBest: null, manualLaps: null, manualPosition: null }); updateUI(); }
+        if(n && p) { 
+            state.drivers.push({ id: Date.now(), number: n, name: p, laps: [], manualBest: null, manualLaps: null, manualPosition: null }); 
+            updateUI();
+            syncLive();
+        }
         document.getElementById('addKartNum').value = ""; document.getElementById('addKartName').value = "";
     };
 
@@ -240,7 +301,7 @@
         state.drivers.forEach((d) => {
             const b = document.createElement('div'); 
             b.className = 'kart-btn';
-            b.setAttribute('data-kart-id', d.id); // Identificador para o efeito do teclado
+            b.setAttribute('data-kart-id', d.id);
             b.innerHTML = `<span class="k-num">#${d.number}</span><span>${d.name}</span>`;
             b.onclick = () => { if(state.isRunning) registerLap(d.id); };
             grid.appendChild(b);
@@ -252,19 +313,35 @@
         const cVal = document.getElementById('raceCircuitSelect').value;
         if(!cVal) return alert("Selecione a pista");
         state.circuit = JSON.parse(cVal); state.isRunning = true;
-        state.raceStartTime = Date.now() - state.elapsedTime;
-        state.timerInterval = setInterval(() => { state.elapsedTime = Date.now() - state.raceStartTime; document.getElementById('mainTimer').innerText = formatTime(state.elapsedTime); }, 33);
+        
+        // Se estava pausado, continua. Se é zero, inicia.
+        if (state.elapsedTime === 0) state.raceStartTime = Date.now();
+        else state.raceStartTime = Date.now() - state.elapsedTime;
+
+        state.timerInterval = setInterval(() => { 
+            state.elapsedTime = Date.now() - state.raceStartTime; 
+            document.getElementById('mainTimer').innerText = formatTime(state.elapsedTime); 
+        }, 33);
+        
         document.getElementById('btnStart').style.display = 'none'; document.getElementById('btnPause').disabled = false; document.getElementById('btnFinish').disabled = false;
+        syncLive();
     };
 
-    window.togglePause = () => { state.isRunning = false; clearInterval(state.timerInterval); document.getElementById('btnStart').style.display = 'inline-block'; };
+    window.togglePause = () => { 
+        state.isRunning = false; 
+        clearInterval(state.timerInterval); 
+        document.getElementById('btnStart').style.display = 'inline-block'; 
+        syncLive();
+    };
 
     window.finishRace = async () => {
         if(!confirm("Salvar resultados?")) return;
         togglePause();
         const results = calculateFinalStats();
         await addDoc(collection(db, "races"), { raceName: document.getElementById('raceNameInput').value || "Bateria", circuit: state.circuit, date: Timestamp.now(), drivers: results });
-        alert("Bateria salva!"); loadHistory();
+        alert("Bateria salva!"); 
+        loadHistory();
+        syncLive();
     };
 
     function parseTimeStr(str) {
@@ -276,20 +353,18 @@
         } catch(e) { return Infinity; }
     }
 
-    function calculateFinalStats() {
-        const trackLen = parseFloat(state.circuit?.length || 0);
-        const mode = document.getElementById('raceMode').value;
-        
-        let stats = state.drivers.map(d => {
+    // Função genérica de cálculo usada tanto pelo Admin quanto pelo Viewer
+    function calculateStatsFromData(drivers, mode, trackLen) {
+        let stats = drivers.map(d => {
             let bestLapMs = Infinity, bestLapIdx = 0, prevTime = 0;
-            d.laps.forEach((curr, i) => { let lap = curr - prevTime; if(lap < bestLapMs) { bestLapMs = lap; bestLapIdx = i + 1; } prevTime = curr; });
+            // Garante que laps é array
+            const laps = d.laps || [];
+            laps.forEach((curr, i) => { let lap = curr - prevTime; if(lap < bestLapMs) { bestLapMs = lap; bestLapIdx = i + 1; } prevTime = curr; });
             
-            if(d.manualBest) {
-                bestLapMs = parseTimeStr(d.manualBest);
-            }
+            if(d.manualBest) bestLapMs = parseTimeStr(d.manualBest);
 
-            const totalV = d.manualLaps !== null ? d.manualLaps : d.laps.length;
-            const totalMs = d.laps.length > 0 ? d.laps[d.laps.length-1] : 0;
+            const totalV = d.manualLaps !== null && d.manualLaps !== undefined ? d.manualLaps : laps.length;
+            const totalMs = laps.length > 0 ? laps[laps.length-1] : 0;
             const avgSpd = (bestLapMs !== Infinity && trackLen > 0) ? (trackLen / (bestLapMs / 1000)) * 3.6 : 0;
             
             return { 
@@ -301,28 +376,21 @@
             };
         });
 
-        if(mode === "tomada") {
-            stats.sort((a,b) => a.bestLapMs - b.bestLapMs);
-        } else {
-            stats.sort((a,b) => b.laps - a.laps || a.totalMs - b.totalMs);
-        }
+        if(mode === "tomada") stats.sort((a,b) => a.bestLapMs - b.bestLapMs);
+        else stats.sort((a,b) => b.laps - a.laps || a.totalMs - b.totalMs);
 
-        if (stats.some(s => s.manualPosition !== null && s.manualPosition !== "")) {
+        // Lógica de posição forçada
+        if (stats.some(s => s.manualPosition)) {
             const fixed = stats.filter(s => s.manualPosition).sort((a,b) => a.manualPosition - b.manualPosition);
             let floating = stats.filter(s => !s.manualPosition);
             let finalOrder = [];
             for(let i = 0; i < stats.length; i++) {
                 const targetRank = i + 1;
                 const forcedDriver = fixed.find(f => parseInt(f.manualPosition) === targetRank);
-                if (forcedDriver) {
-                    finalOrder.push(forcedDriver);
-                } else {
-                    if (floating.length > 0) finalOrder.push(floating.shift());
-                }
+                if (forcedDriver) finalOrder.push(forcedDriver);
+                else if (floating.length > 0) finalOrder.push(floating.shift());
             }
-            finalOrder = [...finalOrder, ...floating];
-            const remainingFixed = fixed.filter(f => !finalOrder.includes(f));
-            finalOrder = [...finalOrder, ...remainingFixed];
+            finalOrder = [...finalOrder, ...floating, ...fixed.filter(f => !finalOrder.includes(f))];
             stats = finalOrder;
         }
 
@@ -333,6 +401,12 @@
         }));
     }
 
+    function calculateFinalStats() {
+        const trackLen = parseFloat(state.circuit?.length || 0);
+        const mode = document.getElementById('raceMode').value;
+        return calculateStatsFromData(state.drivers, mode, trackLen);
+    }
+
     function renderLiveTable() {
         const tb = document.querySelector('#liveTable tbody'); tb.innerHTML = '';
         calculateFinalStats().forEach((d, i) => {
@@ -340,6 +414,55 @@
             tr.innerHTML = `<td>${i+1}º</td><td>#${d.number}</td><td>${d.name}</td><td>${d.laps}</td><td>${d.bestLapDisplay}</td><td><button class='btn-edit' data-id='${d.id}' style='padding:5px 10px'>✏️</button></td>`;
             tr.querySelector('.btn-edit').onclick = () => openEditModal(d.id);
             tb.appendChild(tr);
+        });
+    }
+
+    // --- LÓGICA DO VIEWER (ABA AO VIVO) ---
+    function initLiveView() {
+        liveListener = onSnapshot(doc(db, "live", "current"), (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                renderViewerData(data);
+            } else {
+                document.getElementById('liveRaceTitle').innerText = "SEM CORRIDA ATIVA";
+            }
+        });
+    }
+
+    function renderViewerData(data) {
+        document.getElementById('liveRaceTitle').innerText = data.raceName || "AO VIVO";
+        document.getElementById('liveCircuitInfo').innerText = data.circuit ? `${data.circuit.name} (${data.circuit.length}m)` : "";
+        
+        // Atualiza Timer Localmente no Viewer
+        clearInterval(liveTimerInterval);
+        if (data.isRunning) {
+            // Se está rodando, calcula tempo baseado no timestamp de start do server
+            liveTimerInterval = setInterval(() => {
+                const currentElapsed = Date.now() - data.startTime;
+                document.getElementById('liveTimer').innerText = formatTime(currentElapsed);
+            }, 33);
+        } else {
+            // Se pausado, mostra o tempo onde parou
+            document.getElementById('liveTimer').innerText = formatTime(data.elapsedAtPause || 0);
+        }
+
+        // Calcula stats com dados vindos do server
+        const trackLen = parseFloat(data.circuit?.length || 0);
+        const stats = calculateStatsFromData(data.drivers || [], data.mode || "corrida", trackLen);
+        
+        const tb = document.getElementById('liveViewBody'); tb.innerHTML = '';
+        stats.forEach((d, i) => {
+            tb.innerHTML += `<tr>
+                <td>${i+1}º</td>
+                <td>#${d.number} ${d.name}</td>
+                <td>${d.bestLapIdx}</td>
+                <td>${d.bestLapDisplay}</td>
+                <td>${formatTime(d.totalMs)}</td>
+                <td>${d.dl}</td>
+                <td>${d.da}</td>
+                <td>${d.laps}</td>
+                <td>${d.avgSpd.toFixed(1)}</td>
+            </tr>`;
         });
     }
 
@@ -366,6 +489,7 @@
             d.manualPosition = posVal ? parseInt(posVal) : null;
             document.getElementById('editModal').style.display = 'none';
             updateUI();
+            syncLive();
         }
     };
 
