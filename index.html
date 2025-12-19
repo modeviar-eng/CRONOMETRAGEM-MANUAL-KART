@@ -88,6 +88,15 @@
 <div class="main-content">
     <div id="tab-race" class="tab-content active">
         <h2>Painel de Controle</h2>
+        
+        <div class="glass-panel">
+            <h3 style="color: var(--primary); margin-top: 0;">📥 Importar do Caixa</h3>
+            <div class="form-row">
+                <select id="bookingSelect"><option value="">Baterias Pendentes...</option></select>
+                <button class="btn btn-primary" onclick="importBooking()">Carregar Dados</button>
+            </div>
+        </div>
+
         <div class="glass-panel">
             <div class="form-row">
                 <select id="raceCircuitSelect"><option value="">Carregando...</option></select>
@@ -95,12 +104,18 @@
                 <input type="text" id="raceNameInput" placeholder="Nome da Bateria">
                 <input type="text" id="raceResponsibleInput" placeholder="Responsável">
             </div>
-            <div class="form-row">
-                <input type="number" id="addKartNum" placeholder="Nº Kart">
-                <input type="text" id="addKartName" placeholder="Piloto">
-                <button class="btn btn-blue" onclick="addDriverToGrid()">+ Adicionar</button>
+            
+            <div id="manualEntrySection" style="display:none; border-top: 1px solid #444; padding-top: 15px;">
+                <h3 style="font-size: 1rem; color: var(--warning);">Cadastro Manual Liberado</h3>
+                <div class="form-row">
+                    <input type="number" id="addKartNum" placeholder="Nº Kart">
+                    <input type="text" id="addKartName" placeholder="Piloto">
+                    <button class="btn btn-blue" onclick="addDriverToGrid()">+ Adicionar</button>
+                </div>
             </div>
+            <button id="btnUnlockManual" class="btn btn-warn" onclick="checkManualAccess()" style="width:100%; opacity: 0.6;">🛠️ Cadastro de corrida manual (Requer Senha)</button>
         </div>
+
         <div class="glass-panel" style="text-align: center;">
             <div id="mainTimer">00:00.000</div>
             <button id="btnStart" class="btn btn-primary" onclick="toggleStart()">INICIAR</button>
@@ -111,7 +126,7 @@
         <div id="kartGrid" class="kart-grid"></div>
         <div class="table-container">
             <table id="liveTable" style="margin-top:20px;">
-                <thead><tr><th>Pos</th><th>Kart</th><th>Piloto</th><th>Voltas</th><th>Melhor</th><th>Ação</th></tr></thead>
+                <thead><tr><th>Pos</th><th>Kart</th><th>Piloto</th><th>TMV</th><th>T.T</th><th>DL</th><th>T.U.V</th><th>Voltas</th><th>Ação</th></tr></thead>
                 <tbody></tbody>
             </table>
         </div>
@@ -211,7 +226,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, orderBy, query, Timestamp, doc, updateDoc, where, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, orderBy, query, Timestamp, doc, updateDoc, where, setDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyCXFxcygBteUYgUjuobsTSYVQRIJEgUFjA", authDomain: "cronometragem-kart.firebaseapp.com",
@@ -221,9 +236,49 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    let state = { drivers: [], raceStartTime: 0, elapsedTime: 0, isRunning: false, timerInterval: null, circuit: null };
+    let state = { drivers: [], raceStartTime: 0, elapsedTime: 0, isRunning: false, timerInterval: null, circuit: null, currentBookingId: null };
     let liveListener = null;
     let liveTimerInterval = null;
+
+    function listenBookings() {
+        onSnapshot(query(collection(db, "agendamentos"), where("status", "==", "pendente")), (snap) => {
+            const sel = document.getElementById('bookingSelect');
+            sel.innerHTML = '<option value="">Selecione a Bateria do Caixa...</option>';
+            snap.forEach(d => {
+                const data = d.data();
+                sel.innerHTML += `<option value='${JSON.stringify({id: d.id, ...data})}'>${data.raceTime || '--:--'} - ${data.raceName}</option>`;
+            });
+        });
+    }
+
+    window.importBooking = () => {
+        const val = document.getElementById('bookingSelect').value;
+        if(!val) return alert("Selecione uma bateria!");
+        const data = JSON.parse(val);
+        state.currentBookingId = data.id;
+        document.getElementById('raceNameInput').value = data.raceName;
+        document.getElementById('raceResponsibleInput').value = data.responsible || "";
+        document.getElementById('raceMode').value = data.mode || "corrida";
+        state.drivers = data.drivers.map(p => ({
+            id: Date.now() + Math.random(),
+            number: "",
+            name: p.name,
+            laps: [],
+            manualBest: null, manualLaps: null, manualPosition: null
+        }));
+        updateUI();
+        alert("Bateria carregada! Agora clique em cada piloto no grid para definir o Nº do Kart.");
+    };
+
+    window.checkManualAccess = () => {
+        const pass = prompt("Digite a senha para liberar o cadastro manual:");
+        if(pass === "112512") {
+            document.getElementById('manualEntrySection').style.display = 'block';
+            document.getElementById('btnUnlockManual').style.display = 'none';
+        } else {
+            alert("Senha incorreta!");
+        }
+    };
 
     async function syncLive() {
         const raceName = document.getElementById('raceNameInput').value || "Bateria Ao Vivo";
@@ -256,15 +311,27 @@
         }
     });
 
+    // --- FUNÇÃO CORRIGIDA ---
     function registerLap(driverId) {
         const d = state.drivers.find(x => x.id === driverId);
         if (d) {
             d.laps.push(state.elapsedTime);
+
+            // Se houver contagem manual ativa, incrementamos ela também para não ficar travado em 0
+            if (d.manualLaps !== null && d.manualLaps !== undefined) {
+                d.manualLaps++;
+            }
+
+            const displayLaps = (d.manualLaps !== null && d.manualLaps !== undefined) ? d.manualLaps : d.laps.length;
+            const lapSpan = document.getElementById(`lap-display-${driverId}`);
+            if(lapSpan) lapSpan.innerText = `${displayLaps} Voltas`;
+
             const btn = document.querySelector(`[data-kart-id="${driverId}"]`);
             if (btn) {
                 btn.classList.add('flash');
                 setTimeout(() => btn.classList.remove('flash'), 200);
             }
+            
             renderLiveTable();
             syncLive(); 
         }
@@ -274,22 +341,18 @@
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         const t = document.getElementById(`tab-${tab}`); if(t) t.classList.add('active');
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-        
         if (window.event?.currentTarget?.tagName === 'BUTTON') window.event.currentTarget.classList.add('active');
         else {
             const map = { 'race':0, 'live':1, 'circuits':2, 'results':3 };
             const btns = document.querySelectorAll('.nav-btn');
             if(btns[map[tab]]) btns[map[tab]].classList.add('active');
         }
-
-        if(tab === 'live') {
-            if(!liveListener) initLiveView();
-        } 
+        if(tab === 'live') { if(!liveListener) initLiveView(); } 
     };
 
     window.newRace = () => {
         if(!confirm("Limpar dados para nova bateria?")) return;
-        state.drivers = []; state.elapsedTime = 0; state.isRunning = false; state.circuit = null;
+        state.drivers = []; state.elapsedTime = 0; state.isRunning = false; state.circuit = null; state.currentBookingId = null;
         clearInterval(state.timerInterval);
         document.getElementById('mainTimer').innerText = "00:00.000";
         document.getElementById('btnStart').style.display = 'inline-block';
@@ -316,8 +379,14 @@
             const b = document.createElement('div'); 
             b.className = 'kart-btn';
             b.setAttribute('data-kart-id', d.id);
-            b.innerHTML = `<span class="k-num">#${d.number}</span><span>${d.name}</span>`;
-            b.onclick = () => { if(state.isRunning) registerLap(d.id); };
+            const displayLaps = (d.manualLaps !== null && d.manualLaps !== undefined) ? d.manualLaps : d.laps.length;
+            b.innerHTML = `<span class="k-num">${d.number ? '#'+d.number : '?'}</span>
+                           <span>${d.name}</span>
+                           <span id="lap-display-${d.id}" style="color:var(--text-muted); font-size:0.9rem; margin-top:5px;">${displayLaps} Voltas</span>`;
+            b.onclick = () => { 
+                if(state.isRunning) registerLap(d.id); 
+                else openEditModal(d.id); 
+            };
             grid.appendChild(b);
         });
         renderLiveTable();
@@ -327,15 +396,12 @@
         const cVal = document.getElementById('raceCircuitSelect').value;
         if(!cVal) return alert("Selecione a pista");
         state.circuit = JSON.parse(cVal); state.isRunning = true;
-        
         if (state.elapsedTime === 0) state.raceStartTime = Date.now();
         else state.raceStartTime = Date.now() - state.elapsedTime;
-
         state.timerInterval = setInterval(() => { 
             state.elapsedTime = Date.now() - state.raceStartTime; 
             document.getElementById('mainTimer').innerText = formatTime(state.elapsedTime); 
         }, 33);
-        
         document.getElementById('btnStart').style.display = 'none'; document.getElementById('btnPause').disabled = false; document.getElementById('btnFinish').disabled = false;
         syncLive();
     };
@@ -358,7 +424,11 @@
             date: Timestamp.now(), 
             drivers: results 
         });
-        alert("Bateria salva!"); 
+        if(state.currentBookingId) {
+            try { await updateDoc(doc(db, "agendamentos", state.currentBookingId), { status: "encerrado" }); state.currentBookingId = null; }
+            catch(e) { console.error("Erro ao dar baixa no caixa", e); }
+        }
+        alert("Bateria salva e finalizada no Caixa!"); 
         loadHistory();
         syncLive();
     };
@@ -374,28 +444,29 @@
 
     function calculateStatsFromData(drivers, mode, trackLen) {
         let stats = drivers.map(d => {
-            let bestLapMs = Infinity, bestLapIdx = 0, prevTime = 0;
+            let bestLapMs = Infinity, bestLapIdx = 0, prevTime = 0, lastLapMs = 0;
             const laps = d.laps || [];
-            laps.forEach((curr, i) => { let lap = curr - prevTime; if(lap < bestLapMs) { bestLapMs = lap; bestLapIdx = i + 1; } prevTime = curr; });
-            
+            laps.forEach((curr, i) => { 
+                let lap = curr - prevTime; 
+                if(lap < bestLapMs) { bestLapMs = lap; bestLapIdx = i + 1; } 
+                prevTime = curr; 
+                if(i === laps.length - 1) lastLapMs = lap;
+            });
             if(d.manualBest) bestLapMs = parseTimeStr(d.manualBest);
-
             const totalV = d.manualLaps !== null && d.manualLaps !== undefined ? d.manualLaps : laps.length;
             const totalMs = laps.length > 0 ? laps[laps.length-1] : 0;
             const avgSpd = (bestLapMs !== Infinity && trackLen > 0) ? (trackLen / (bestLapMs / 1000)) * 3.6 : 0;
-            
             return { 
                 id: d.id, name: d.name, number: d.number, 
                 laps: totalV, bestLapIdx, bestLapMs, 
                 bestLapDisplay: d.manualBest || formatTime(bestLapMs), 
                 totalMs, avgSpd,
+                lastLapDisplay: laps.length > 0 ? formatTime(lastLapMs) : "--:--.---",
                 manualPosition: d.manualPosition
             };
         });
-
         if(mode === "tomada") stats.sort((a,b) => a.bestLapMs - b.bestLapMs);
         else stats.sort((a,b) => b.laps - a.laps || a.totalMs - b.totalMs);
-
         if (stats.some(s => s.manualPosition)) {
             const fixed = stats.filter(s => s.manualPosition).sort((a,b) => a.manualPosition - b.manualPosition);
             let floating = stats.filter(s => !s.manualPosition);
@@ -409,7 +480,6 @@
             finalOrder = [...finalOrder, ...floating];
             stats = finalOrder;
         }
-
         return stats.map((s, i) => ({ 
             ...s, 
             dl: i === 0 ? "-" : (s.laps < stats[0].laps ? `+${stats[0].laps - s.laps}v` : `+${formatTime(s.totalMs - stats[0].totalMs)}`), 
@@ -427,7 +497,7 @@
         const tb = document.querySelector('#liveTable tbody'); tb.innerHTML = '';
         calculateFinalStats().forEach((d, i) => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${i+1}º</td><td>#${d.number}</td><td>${d.name}</td><td>${d.laps}</td><td>${d.bestLapDisplay}</td><td><button class='btn-edit' data-id='${d.id}' style='padding:5px 10px'>✏️</button></td>`;
+            tr.innerHTML = `<td>${i+1}º</td><td>#${d.number}</td><td>${d.name}</td><td>${d.bestLapDisplay}</td><td>${formatTime(d.totalMs)}</td><td>${d.dl}</td><td>${d.lastLapDisplay}</td><td>${d.laps}</td><td><button class='btn-edit' data-id='${d.id}' style='padding:5px 10px'>✏️</button></td>`;
             tr.querySelector('.btn-edit').onclick = () => openEditModal(d.id);
             tb.appendChild(tr);
         });
@@ -447,7 +517,6 @@
     function renderViewerData(data) {
         document.getElementById('liveRaceTitle').innerText = data.raceName || "AO VIVO";
         document.getElementById('liveCircuitInfo').innerText = data.circuit ? `${data.circuit.name} (${data.circuit.length}m)` : "";
-        
         clearInterval(liveTimerInterval);
         if (data.isRunning) {
             liveTimerInterval = setInterval(() => {
@@ -457,29 +526,15 @@
         } else {
             document.getElementById('liveTimer').innerText = formatTime(data.elapsedAtPause || 0);
         }
-
         const trackLen = parseFloat(data.circuit?.length || 0);
         const stats = calculateStatsFromData(data.drivers || [], data.mode || "corrida", trackLen);
-        
-        // Melhor Volta Geral (Live)
         let globalBest = stats.reduce((prev, curr) => (prev.bestLapMs < curr.bestLapMs) ? prev : curr, {bestLapMs: Infinity});
         const header = document.getElementById('liveBestLapHeader');
         if(globalBest.bestLapMs !== Infinity) header.innerText = `Melhor Volta da Corrida: ${globalBest.bestLapDisplay} (#${globalBest.number} ${globalBest.name})`;
         else header.innerText = "Melhor Volta da Corrida: --:--.--- (--)";
-
         const tb = document.getElementById('liveViewBody'); tb.innerHTML = '';
         stats.forEach((d, i) => {
-            tb.innerHTML += `<tr>
-                <td>${i+1}º</td>
-                <td>#${d.number} ${d.name}</td>
-                <td>${d.bestLapIdx}</td>
-                <td>${d.bestLapDisplay}</td>
-                <td>${formatTime(d.totalMs)}</td>
-                <td>${d.dl}</td>
-                <td>${d.da}</td>
-                <td>${d.laps}</td>
-                <td>${d.avgSpd.toFixed(1)}</td>
-            </tr>`;
+            tb.innerHTML += `<tr><td>${i+1}º</td><td>#${d.number} ${d.name}</td><td>${d.bestLapIdx}</td><td>${d.bestLapDisplay}</td><td>${formatTime(d.totalMs)}</td><td>${d.dl}</td><td>${d.da}</td><td>${d.laps}</td><td>${d.avgSpd.toFixed(1)}</td></tr>`;
         });
     }
 
@@ -500,7 +555,11 @@
         if(d) {
             d.name = document.getElementById('editName').value;
             d.number = document.getElementById('editNum').value;
-            d.manualLaps = parseInt(document.getElementById('editLaps').value);
+            
+            // Ajuste para permitir que o contador volte a ser automático se deixar o campo vazio
+            const lapsInput = document.getElementById('editLaps').value;
+            d.manualLaps = lapsInput === "" ? null : parseInt(lapsInput);
+            
             d.manualBest = document.getElementById('editBest').value;
             const posVal = document.getElementById('editPos').value;
             d.manualPosition = posVal ? parseInt(posVal) : null;
@@ -531,20 +590,15 @@
     window.loadHistory = async () => {
         const dateFilter = document.getElementById('filterDate').value;
         const respFilter = document.getElementById('searchResponsible').value.toLowerCase();
-        
         let qry = query(collection(db, "races"), orderBy("date", "desc"));
-        
         if(dateFilter) {
             const start = new Date(dateFilter + "T00:00:00"), end = new Date(dateFilter + "T23:59:59");
             qry = query(collection(db, "races"), where("date", ">=", start), where("date", "<=", end));
         }
-
         const snap = await getDocs(qry), list = document.getElementById('historyList'); list.innerHTML = '';
         snap.forEach(d => {
             const data = d.data();
-            // Filtro local por responsável (client-side para permitir busca parcial mais fácil)
             if(respFilter && !data.responsible?.toLowerCase().includes(respFilter)) return;
-
             const li = document.createElement('li');
             li.style.cssText = "padding:10px; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center;";
             li.innerHTML = `<div><span style="color:var(--primary); font-weight:bold;">${data.raceName}</span><br><small style="color:#888;">${data.date.toDate().toLocaleDateString()} ${data.date.toDate().toLocaleTimeString()} | Resp: ${data.responsible || 'N/A'}</small></div> <button class="btn btn-blue" style="padding:5px 10px; font-size:0.8rem" onclick='viewResult(${JSON.stringify(data)})'>Ver</button>`;
@@ -555,13 +609,10 @@
     window.viewResult = (data) => {
         document.getElementById('shareRaceName').innerText = data.raceName;
         document.getElementById('shareCircuitInfo').innerText = `Pista: ${data.circuit.name} | Extensão: ${data.circuit.length}m`;
-        
-        // Melhor Volta Geral (Imagem/Result)
         let globalBest = data.drivers.reduce((prev, curr) => (prev.bestLapMs < curr.bestLapMs) ? prev : curr, {bestLapMs: Infinity});
         const header = document.getElementById('shareBestLapHeader');
         if(globalBest.bestLapMs !== Infinity) header.innerText = `Melhor Volta da Corrida: ${globalBest.bestLapDisplay} (#${globalBest.number} ${globalBest.name})`;
         else header.innerText = "Melhor Volta da Corrida: --:--.--- (--)";
-
         const tb = document.getElementById('shareTableBody'); tb.innerHTML = '';
         data.drivers.forEach((d, i) => {
             tb.innerHTML += `<tr><td>${i+1}º</td><td>#${d.number} ${d.name}</td><td>${d.bestLapIdx}</td><td>${d.bestLapDisplay}</td><td>${formatTime(d.totalMs)}</td><td>${d.dl}</td><td>${d.da}</td><td>${d.laps}</td><td>${d.avgSpd.toFixed(1)}</td></tr>`;
@@ -582,7 +633,7 @@
         return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}.${ms_.toString().padStart(3,'0')}`;
     }
 
-    window.onload = () => { loadCircuits(); loadHistory(); };
+    window.onload = () => { loadCircuits(); loadHistory(); listenBookings(); };
 </script>
 </body>
 </html>
