@@ -56,6 +56,37 @@
         #shareableResult { position: fixed; top: -9999px; left: -9999px; width: 1100px; background: #121212; padding: 40px; color: white; border: 5px solid var(--primary); visibility: hidden; }
         .legend { margin-top: 20px; font-size: 10px; color: #aaa; display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; border-top: 1px solid #333; padding-top: 10px; }
 
+        /* --- NOVO CSS PARA TELA DIVIDIDA NA CORRIDA --- */
+        .race-split-container {
+            display: flex;
+            gap: 20px;
+            height: calc(100vh - 40px); /* Ajusta altura para caber na tela sem scroll global excessivo */
+        }
+        
+        .race-left {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .race-right {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-panel);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 15px;
+            overflow: hidden; /* O conteúdo interno que rola */
+        }
+
+        .history-log-container {
+            flex: 1;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        /* AJUSTES MOBILE / CELULAR */
         @media (max-width: 768px) {
             body { flex-direction: column; height: 100vh; }
             .sidebar { width: 100%; height: auto; flex-direction: row; justify-content: space-around; padding: 10px 0; border-right: none; border-bottom: 1px solid #333; }
@@ -63,7 +94,7 @@
             .nav-btn { width: auto; padding: 8px 15px; border-left: none; border-bottom: 3px solid transparent; font-size: 0.9rem; flex-direction: column; gap: 5px; }
             .nav-btn.active { background: transparent; border-left: none; border-bottom: 3px solid var(--primary); color: var(--primary); }
             .nav-btn span { display: block; font-size: 0.75rem; }
-            .main-content { padding: 15px; }
+            .main-content { padding: 15px; overflow-y: auto; height: auto; } /* Reset height no mobile */
             .form-row { flex-direction: column; gap: 10px; }
             .form-row input, .form-row select, .form-row button { width: 100%; flex: none; }
             #mainTimer, #liveTimer { font-size: 15vw; margin: 10px 0; }
@@ -73,6 +104,21 @@
             .kart-btn { height: 100px; }
             .k-num { font-size: 2rem; }
             .modal-content { margin: 20% auto; width: 90%; }
+
+            /* Ajuste Split Mobile */
+            .race-split-container {
+                display: flex;
+                flex-direction: column;
+                height: auto;
+                gap: 20px;
+            }
+            .race-left {
+                overflow-y: visible;
+                padding-right: 0;
+            }
+            .race-right {
+                height: 400px; /* Altura fixa para o histórico no mobile */
+            }
         }
     </style>
 </head>
@@ -87,50 +133,76 @@
 
 <div class="main-content">
     <div id="tab-race" class="tab-content active">
-        <h2>Painel de Controle</h2>
         
-        <div class="glass-panel">
-            <h3 style="color: var(--primary); margin-top: 0;">📥 Importar do Caixa</h3>
-            <div class="form-row">
-                <select id="bookingSelect"><option value="">Baterias Pendentes...</option></select>
-                <button class="btn btn-primary" onclick="importBooking()">Carregar Dados</button>
-            </div>
-        </div>
-
-        <div class="glass-panel">
-            <div class="form-row">
-                <select id="raceCircuitSelect"><option value="">Carregando...</option></select>
-                <select id="raceMode"><option value="corrida">Modo: Corrida</option><option value="tomada">Modo: Tomada de Tempo</option></select>
-                <input type="text" id="raceNameInput" placeholder="Nome da Bateria">
-                <input type="text" id="raceResponsibleInput" placeholder="Responsável">
-            </div>
+        <div class="race-split-container">
             
-            <div id="manualEntrySection" style="display:none; border-top: 1px solid #444; padding-top: 15px;">
-                <h3 style="font-size: 1rem; color: var(--warning);">Cadastro Manual Liberado</h3>
-                <div class="form-row">
-                    <input type="number" id="addKartNum" placeholder="Nº Kart">
-                    <input type="text" id="addKartName" placeholder="Piloto">
-                    <button class="btn btn-blue" onclick="addDriverToGrid()">+ Adicionar</button>
+            <div class="race-left">
+                <h2>Painel de Controle</h2>
+                
+                <div class="glass-panel">
+                    <h3 style="color: var(--primary); margin-top: 0;">📥 Importar do Caixa</h3>
+                    <div class="form-row">
+                        <select id="bookingSelect"><option value="">Baterias Pendentes...</option></select>
+                        <button class="btn btn-primary" onclick="importBooking()">Carregar Dados</button>
+                    </div>
+                </div>
+
+                <div class="glass-panel">
+                    <div class="form-row">
+                        <select id="raceCircuitSelect"><option value="">Carregando...</option></select>
+                        <select id="raceMode"><option value="corrida">Modo: Corrida</option><option value="tomada">Modo: Tomada de Tempo</option></select>
+                        <input type="text" id="raceNameInput" placeholder="Nome da Bateria">
+                        <input type="text" id="raceResponsibleInput" placeholder="Responsável">
+                    </div>
+                    
+                    <div id="manualEntrySection" style="display:none; border-top: 1px solid #444; padding-top: 15px;">
+                        <h3 style="font-size: 1rem; color: var(--warning);">Cadastro Manual Liberado</h3>
+                        <div class="form-row">
+                            <input type="number" id="addKartNum" placeholder="Nº Kart">
+                            <input type="text" id="addKartName" placeholder="Piloto">
+                            <button class="btn btn-blue" onclick="addDriverToGrid()">+ Adicionar</button>
+                        </div>
+                    </div>
+                    <button id="btnUnlockManual" class="btn btn-warn" onclick="checkManualAccess()" style="width:100%; opacity: 0.6;">🛠️ Cadastro de corrida manual (Requer Senha)</button>
+                </div>
+
+                <div class="glass-panel" style="text-align: center;">
+                    <div id="mainTimer">00:00.000</div>
+                    <button id="btnStart" class="btn btn-primary" onclick="toggleStart()">INICIAR</button>
+                    <button id="btnPause" class="btn btn-warn" onclick="togglePause()" disabled>PAUSAR</button>
+                    <button id="btnFinish" class="btn btn-danger" onclick="finishRace()" disabled>FINALIZAR</button>
+                    <button id="btnNew" class="btn btn-blue" onclick="newRace()">NOVA CORRIDA</button>
+                </div>
+                
+                <div id="kartGrid" class="kart-grid"></div>
+                
+                <div class="table-container">
+                    <table id="liveTable" style="margin-top:20px;">
+                        <thead><tr><th>Pos</th><th>Kart</th><th>Piloto</th><th>TMV</th><th>T.T</th><th>DL</th><th>T.U.V</th><th>Voltas</th><th>Ação</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </div>
-            <button id="btnUnlockManual" class="btn btn-warn" onclick="checkManualAccess()" style="width:100%; opacity: 0.6;">🛠️ Cadastro de corrida manual (Requer Senha)</button>
-        </div>
 
-        <div class="glass-panel" style="text-align: center;">
-            <div id="mainTimer">00:00.000</div>
-            <button id="btnStart" class="btn btn-primary" onclick="toggleStart()">INICIAR</button>
-            <button id="btnPause" class="btn btn-warn" onclick="togglePause()" disabled>PAUSAR</button>
-            <button id="btnFinish" class="btn btn-danger" onclick="finishRace()" disabled>FINALIZAR</button>
-            <button id="btnNew" class="btn btn-blue" onclick="newRace()">NOVA CORRIDA</button>
-        </div>
-        <div id="kartGrid" class="kart-grid"></div>
-        <div class="table-container">
-            <table id="liveTable" style="margin-top:20px;">
-                <thead><tr><th>Pos</th><th>Kart</th><th>Piloto</th><th>TMV</th><th>T.T</th><th>DL</th><th>T.U.V</th><th>Voltas</th><th>Ação</th></tr></thead>
-                <tbody></tbody>
-            </table>
-        </div>
-    </div>
+            <div class="race-right">
+                <h3 style="margin-top: 0; color: var(--warning); border-bottom: 1px solid #333; padding-bottom: 10px;">📜 Histórico de Passagens</h3>
+                <div class="table-container history-log-container">
+                    <table id="lapHistoryTable">
+                        <thead>
+                            <tr>
+                                <th style="background:#222; position:sticky; top:0;">V.</th>
+                                <th style="background:#222; position:sticky; top:0;">Kart</th>
+                                <th style="background:#222; position:sticky; top:0;">Piloto</th>
+                                <th style="background:#222; position:sticky; top:0;">T. Volta</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lapHistoryBody">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div> </div>
 
     <div id="tab-live" class="tab-content">
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--primary); padding-bottom:10px; margin-bottom:20px;">
@@ -311,13 +383,24 @@
         }
     });
 
-    // --- FUNÇÃO CORRIGIDA ---
+    // --- FUNÇÃO CORRIGIDA E ATUALIZADA COM HISTÓRICO ---
     function registerLap(driverId) {
         const d = state.drivers.find(x => x.id === driverId);
         if (d) {
-            d.laps.push(state.elapsedTime);
+            const currentTime = state.elapsedTime;
+            
+            // Calculo para o histórico de passagens
+            let lapTime = 0;
+            if(d.laps.length === 0) {
+                lapTime = currentTime; // Primeira volta é o tempo total até agora
+            } else {
+                lapTime = currentTime - d.laps[d.laps.length - 1]; // Volta atual menos a anterior
+            }
 
-            // Se houver contagem manual ativa, incrementamos ela também para não ficar travado em 0
+            // Adiciona timestamp da volta
+            d.laps.push(currentTime);
+
+            // Incremento manual se necessário
             if (d.manualLaps !== null && d.manualLaps !== undefined) {
                 d.manualLaps++;
             }
@@ -326,11 +409,22 @@
             const lapSpan = document.getElementById(`lap-display-${driverId}`);
             if(lapSpan) lapSpan.innerText = `${displayLaps} Voltas`;
 
+            // Flash no botão
             const btn = document.querySelector(`[data-kart-id="${driverId}"]`);
             if (btn) {
                 btn.classList.add('flash');
                 setTimeout(() => btn.classList.remove('flash'), 200);
             }
+
+            // ATUALIZAÇÃO DO HISTÓRICO DE PASSAGENS (DIREITA)
+            const historyBody = document.getElementById('lapHistoryBody');
+            const row = `<tr>
+                <td style="color:#aaa">${displayLaps}</td>
+                <td style="font-weight:bold; color:var(--warning)">#${d.number}</td>
+                <td>${d.name}</td>
+                <td style="color:var(--primary)">${formatTime(lapTime)}</td>
+            </tr>`;
+            historyBody.insertAdjacentHTML('afterbegin', row);
             
             renderLiveTable();
             syncLive(); 
@@ -359,6 +453,9 @@
         document.getElementById('raceNameInput').value = "";
         document.getElementById('raceResponsibleInput').value = "";
         document.getElementById('raceCircuitSelect').value = "";
+        // Limpa o histórico de passagens
+        document.getElementById('lapHistoryBody').innerHTML = "";
+        
         updateUI();
         syncLive(); 
     };
