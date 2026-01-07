@@ -31,6 +31,7 @@
         .btn { padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; text-transform: uppercase; transition: 0.2s; font-size: 0.9rem; }
         .btn-primary { background: var(--primary); color: #000; } .btn-danger { background: var(--danger); color: white; }
         .btn-warn { background: var(--warning); color: #000; } .btn-blue { background: var(--secondary); color: white; }
+        .btn-usb { background: #9c27b0; color: white; }
         
         #mainTimer, #liveTimer { font-family: 'Roboto Mono', monospace; font-size: 4rem; text-align: center; text-shadow: 0 0 10px var(--primary); margin: 20px 0; line-height: 1; }
         
@@ -51,42 +52,34 @@
         .best-lap-header { text-align: center; background: rgba(0, 230, 118, 0.1); border: 1px solid var(--primary); border-radius: 8px; padding: 10px; margin-bottom: 20px; color: var(--primary); font-weight: bold; }
         
         .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); }
-        .modal-content { background: var(--bg-panel); margin: 10% auto; padding: 25px; width: 400px; border-radius: 10px; border: 1px solid var(--primary); max-width: 90%; }
+        
+        .modal-content { 
+            background: var(--bg-panel); 
+            margin: 5% auto; 
+            padding: 25px; 
+            width: 400px; 
+            border-radius: 10px; 
+            border: 1px solid var(--primary); 
+            max-width: 90%; 
+            max-height: 90vh; 
+            overflow-y: auto; 
+        }
         
         #shareableResult { position: fixed; top: -9999px; left: -9999px; width: 1100px; background: #121212; padding: 40px; color: white; border: 5px solid var(--primary); visibility: hidden; }
         .legend { margin-top: 20px; font-size: 10px; color: #aaa; display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; border-top: 1px solid #333; padding-top: 10px; }
 
-        /* --- NOVO CSS PARA TELA DIVIDIDA NA CORRIDA --- */
         .race-split-container {
             display: flex;
             gap: 20px;
-            height: calc(100vh - 40px); /* Ajusta altura para caber na tela sem scroll global excessivo */
+            height: calc(100vh - 40px);
         }
         
-        .race-left {
-            flex: 1;
-            overflow-y: auto;
-            padding-right: 5px;
-        }
+        .race-left { flex: 1; overflow-y: auto; padding-right: 5px; }
+        .race-right { flex: 1; display: flex; flex-direction: column; background: var(--bg-panel); border: 1px solid #333; border-radius: 12px; padding: 15px; overflow: hidden; }
+        .history-log-container { flex: 1; overflow-y: auto; margin-top: 10px; }
+        
+        .status-usb { font-size: 0.8rem; margin-top: 5px; color: #aaa; text-align: center; }
 
-        .race-right {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background: var(--bg-panel);
-            border: 1px solid #333;
-            border-radius: 12px;
-            padding: 15px;
-            overflow: hidden; /* O conteúdo interno que rola */
-        }
-
-        .history-log-container {
-            flex: 1;
-            overflow-y: auto;
-            margin-top: 10px;
-        }
-
-        /* AJUSTES MOBILE / CELULAR */
         @media (max-width: 768px) {
             body { flex-direction: column; height: 100vh; }
             .sidebar { width: 100%; height: auto; flex-direction: row; justify-content: space-around; padding: 10px 0; border-right: none; border-bottom: 1px solid #333; }
@@ -94,31 +87,15 @@
             .nav-btn { width: auto; padding: 8px 15px; border-left: none; border-bottom: 3px solid transparent; font-size: 0.9rem; flex-direction: column; gap: 5px; }
             .nav-btn.active { background: transparent; border-left: none; border-bottom: 3px solid var(--primary); color: var(--primary); }
             .nav-btn span { display: block; font-size: 0.75rem; }
-            .main-content { padding: 15px; overflow-y: auto; height: auto; } /* Reset height no mobile */
+            .main-content { padding: 15px; overflow-y: auto; height: auto; }
             .form-row { flex-direction: column; gap: 10px; }
             .form-row input, .form-row select, .form-row button { width: 100%; flex: none; }
             #mainTimer, #liveTimer { font-size: 15vw; margin: 10px 0; }
             .glass-panel button { width: 100%; margin-bottom: 10px; }
-            .glass-panel button:last-child { margin-bottom: 0; }
             .kart-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-            .kart-btn { height: 100px; }
-            .k-num { font-size: 2rem; }
-            .modal-content { margin: 20% auto; width: 90%; }
-
-            /* Ajuste Split Mobile */
-            .race-split-container {
-                display: flex;
-                flex-direction: column;
-                height: auto;
-                gap: 20px;
-            }
-            .race-left {
-                overflow-y: visible;
-                padding-right: 0;
-            }
-            .race-right {
-                height: 400px; /* Altura fixa para o histórico no mobile */
-            }
+            .race-split-container { display: flex; flex-direction: column; height: auto; gap: 20px; }
+            .race-left { overflow-y: visible; padding-right: 0; }
+            .race-right { height: 400px; }
         }
     </style>
 </head>
@@ -137,35 +114,47 @@
         <div class="race-split-container">
             
             <div class="race-left">
-                <h2>Painel de Controle</h2>
-                
-                <div class="glass-panel">
-                    <h3 style="color: var(--primary); margin-top: 0;">📥 Importar do Caixa</h3>
-                    <div class="form-row">
-                        <select id="bookingSelect"><option value="">Baterias Pendentes...</option></select>
-                        <button class="btn btn-primary" onclick="importBooking()">Carregar Dados</button>
-                    </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                    <h2 style="margin:0;">Painel de Controle</h2>
+                    <button id="btnToggleSetup" class="btn btn-blue" onclick="toggleSetup()" style="padding: 8px 15px; font-size: 0.8rem;">🔼 Ocultar Configurações</button>
                 </div>
-
-                <div class="glass-panel">
-                    <div class="form-row">
-                        <select id="raceCircuitSelect"><option value="">Carregando...</option></select>
-                        <select id="raceMode"><option value="corrida">Modo: Corrida</option><option value="tomada">Modo: Tomada de Tempo</option></select>
-                        <input type="text" id="raceNameInput" placeholder="Nome da Bateria">
-                        <input type="text" id="raceResponsibleInput" placeholder="Responsável">
+                
+                <div id="setupPanelContainer">
+                    <div class="glass-panel" style="border-left: 4px solid #9c27b0;">
+                        <div class="form-row" style="align-items: center; justify-content: space-between;">
+                            <h3 style="margin:0; color:#e1e1e6;">Integração AMB 600</h3>
+                            <button class="btn btn-usb" id="btnConnectUSB" onclick="connectSerialDecoder()">🔌 Conectar Decoder (USB)</button>
+                        </div>
+                        <div id="usbStatus" class="status-usb">Desconectado</div>
                     </div>
-                    
-                    <div id="manualEntrySection" style="display:none; border-top: 1px solid #444; padding-top: 15px;">
-                        <h3 style="font-size: 1rem; color: var(--warning);">Cadastro Manual Liberado</h3>
+
+                    <div class="glass-panel">
+                        <h3 style="color: var(--primary); margin-top: 0;">📥 Importar do Caixa</h3>
                         <div class="form-row">
-                            <input type="number" id="addKartNum" placeholder="Nº Kart">
-                            <input type="text" id="addKartName" placeholder="Piloto">
-                            <button class="btn btn-blue" onclick="addDriverToGrid()">+ Adicionar</button>
+                            <select id="bookingSelect"><option value="">Baterias Pendentes...</option></select>
+                            <button class="btn btn-primary" onclick="importBooking()">Carregar Dados</button>
                         </div>
                     </div>
-                    <button id="btnUnlockManual" class="btn btn-warn" onclick="checkManualAccess()" style="width:100%; opacity: 0.6;">🛠️ Cadastro de corrida manual (Requer Senha)</button>
-                </div>
 
+                    <div class="glass-panel">
+                        <div class="form-row">
+                            <select id="raceCircuitSelect"><option value="">Carregando...</option></select>
+                            <select id="raceMode"><option value="corrida">Modo: Corrida</option><option value="tomada">Modo: Tomada de Tempo</option></select>
+                            <input type="text" id="raceNameInput" placeholder="Nome da Bateria">
+                            <input type="text" id="raceResponsibleInput" placeholder="Responsável">
+                        </div>
+                        
+                        <div id="manualEntrySection" style="display:none; border-top: 1px solid #444; padding-top: 15px;">
+                            <h3 style="font-size: 1rem; color: var(--warning);">Cadastro Manual Liberado</h3>
+                            <div class="form-row">
+                                <input type="number" id="addKartNum" placeholder="Nº Kart">
+                                <input type="text" id="addKartName" placeholder="Piloto">
+                                <button class="btn btn-blue" onclick="addDriverToGrid()">+ Adicionar</button>
+                            </div>
+                        </div>
+                        <button id="btnUnlockManual" class="btn btn-warn" onclick="checkManualAccess()" style="width:100%; opacity: 0.6;">🛠️ Cadastro de corrida manual (Requer Senha)</button>
+                    </div>
+                </div>
                 <div class="glass-panel" style="text-align: center;">
                     <div id="mainTimer">00:00.000</div>
                     <button id="btnStart" class="btn btn-primary" onclick="toggleStart()">INICIAR</button>
@@ -196,32 +185,25 @@
                                 <th style="background:#222; position:sticky; top:0;">T. Volta</th>
                             </tr>
                         </thead>
-                        <tbody id="lapHistoryBody">
-                            </tbody>
+                        <tbody id="lapHistoryBody"></tbody>
                     </table>
                 </div>
             </div>
 
-        </div> </div>
+        </div> 
+    </div>
 
     <div id="tab-live" class="tab-content">
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--primary); padding-bottom:10px; margin-bottom:20px;">
             <h2 style="margin:0; color:var(--primary)" id="liveRaceTitle">AGUARDANDO CORRIDA...</h2>
             <div style="text-align:right; font-size:0.9rem; color:#aaa" id="liveCircuitInfo"></div>
         </div>
-        
         <div id="liveBestLapHeader" class="best-lap-header">Melhor Volta da Corrida: --:--.--- (--)</div>
-        
         <div id="liveTimer" style="color:white;">00:00.000</div>
-        
         <div class="table-container">
             <table class="live-table">
-                <thead>
-                    <tr><th>POS</th><th>PILOTO</th><th>MV</th><th>TMV</th><th>TT</th><th>DL</th><th>DA</th><th>TV</th><th>VM</th></tr>
-                </thead>
-                <tbody id="liveViewBody">
-                    <tr><td colspan="9" style="text-align:center; padding:20px;">Aguardando dados da cronometragem...</td></tr>
-                </tbody>
+                <thead><tr><th>POS</th><th>PILOTO</th><th>MV</th><th>TMV</th><th>TT</th><th>DL</th><th>DA</th><th>TV</th><th>VM</th></tr></thead>
+                <tbody id="liveViewBody"><tr><td colspan="9" style="text-align:center; padding:20px;">Aguardando dados da cronometragem...</td></tr></tbody>
             </table>
         </div>
         <div class="legend">
@@ -250,14 +232,8 @@
         <h2>Histórico de Baterias</h2>
         <div class="glass-panel">
             <div class="form-row">
-                <div style="flex:1">
-                    <label>Filtrar Dia:</label>
-                    <input type="date" id="filterDate" onchange="loadHistory()" style="width:100%">
-                </div>
-                <div style="flex:1">
-                    <label>Buscar Responsável:</label>
-                    <input type="text" id="searchResponsible" placeholder="Nome do responsável..." onkeyup="loadHistory()" style="width:100%">
-                </div>
+                <div style="flex:1"><label>Filtrar Dia:</label><input type="date" id="filterDate" onchange="loadHistory()" style="width:100%"></div>
+                <div style="flex:1"><label>Buscar Responsável:</label><input type="text" id="searchResponsible" placeholder="Nome do responsável..." onkeyup="loadHistory()" style="width:100%"></div>
             </div>
         </div>
         <div id="finalResultContainer"></div>
@@ -270,12 +246,25 @@
     <div class="modal-content">
         <h3>Editar Piloto</h3>
         <input type="hidden" id="editDriverId">
-        <label style="font-size:0.8rem; color:#aaa">Posição Forçada (Deixe vazio para automático)</label>
+        
+        <label style="font-size:0.8rem; color:#aaa">Posição Forçada</label>
         <input type="number" id="editPos" placeholder="Ex: 1" style="width:100%; margin-bottom:10px; border: 1px solid var(--primary);">
+        
+        <label style="font-size:0.8rem; color:#aaa">Nome</label>
         <input type="text" id="editName" placeholder="Nome" style="width:100%; margin-bottom:10px">
+        
+        <label style="font-size:0.8rem; color:#aaa">Nº do Kart (Display)</label>
         <input type="number" id="editNum" placeholder="Kart" style="width:100%; margin-bottom:10px">
+        
+        <label style="font-size:0.8rem; color:var(--secondary); font-weight:bold;">ID Transponder (Decoder AMB)</label>
+        <input type="text" id="editTransponder" placeholder="Ex: 1234567" style="width:100%; margin-bottom:10px; border: 1px solid var(--secondary);">
+
+        <label style="font-size:0.8rem; color:#aaa">Ajuste de Voltas</label>
         <input type="number" id="editLaps" placeholder="Voltas" style="width:100%; margin-bottom:10px">
+        
+        <label style="font-size:0.8rem; color:#aaa">Ajuste Melhor Volta</label>
         <input type="text" id="editBest" placeholder="Melhor (MM:SS.mmm)" style="width:100%; margin-bottom:10px">
+        
         <button class="btn btn-primary" onclick="saveDriverEdit()" style="width:100%; margin-bottom:10px;">Salvar</button>
         <button class="btn" onclick="document.getElementById('editModal').style.display='none'" style="width:100%;">Fechar</button>
     </div>
@@ -312,6 +301,139 @@
     let liveListener = null;
     let liveTimerInterval = null;
 
+    // ============================================
+    // FUNÇÃO DE TOGGLE DO SETUP
+    // ============================================
+    window.toggleSetup = () => {
+        const container = document.getElementById('setupPanelContainer');
+        const btn = document.getElementById('btnToggleSetup');
+        if (container.style.display === 'none') {
+            container.style.display = 'block';
+            btn.innerText = '🔼 Ocultar Configurações';
+            btn.classList.replace('btn-warn', 'btn-blue');
+        } else {
+            container.style.display = 'none';
+            btn.innerText = '🔽 Mostrar Configurações';
+            btn.classList.replace('btn-blue', 'btn-warn');
+        }
+    };
+
+    // ============================================
+    // INTEGRAÇÃO USB / SERIAL (AMB 600)
+    // ============================================
+    let port;
+    let reader;
+    let keepReading = false;
+    let isUsbConnected = false;
+
+    window.connectSerialDecoder = async () => {
+        // LÓGICA DE DESCONEXÃO
+        if (isUsbConnected) {
+            keepReading = false;
+            if (reader) {
+                try { await reader.cancel(); } catch(e) { console.log(e); }
+                reader = null;
+            }
+            if (port) {
+                try { await port.close(); } catch(e) { console.log(e); }
+                port = null;
+            }
+            
+            // Reseta a UI
+            document.getElementById('usbStatus').innerText = "Desconectado";
+            document.getElementById('usbStatus').style.color = "#aaa";
+            const btn = document.getElementById('btnConnectUSB');
+            btn.innerText = "🔌 Conectar Decoder (USB)";
+            btn.classList.remove('btn-danger');
+            btn.classList.add('btn-usb');
+            
+            isUsbConnected = false;
+            return;
+        }
+
+        // LÓGICA DE CONEXÃO
+        if ("serial" in navigator) {
+            try {
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 9600 });
+                
+                document.getElementById('usbStatus').innerText = "Conectado à Porta Serial (AMB 600)";
+                document.getElementById('usbStatus').style.color = "#04d361";
+                
+                // Atualiza botão para modo DESATIVAR
+                const btn = document.getElementById('btnConnectUSB');
+                btn.innerText = "❌ Desativar USB";
+                btn.classList.remove('btn-usb');
+                btn.classList.add('btn-danger');
+                
+                isUsbConnected = true;
+                keepReading = true;
+                readSerialLoop();
+
+            } catch (err) {
+                console.error("Erro Serial:", err);
+                alert("Erro ao conectar na COM5/USB. Verifique se o cabo está conectado ou se outra aba está usando a porta.");
+            }
+        } else {
+            alert("Seu navegador não suporta Web Serial API. Use Chrome ou Edge.");
+        }
+    };
+
+    async function readSerialLoop() {
+        const textDecoder = new TextDecoderStream();
+        const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+        reader = textDecoder.readable.getReader();
+        let buffer = "";
+
+        try {
+            while (keepReading) {
+                const { value, done } = await reader.read();
+                if (done) { break; }
+                if (value) {
+                    buffer += value;
+                    let lines = buffer.split(/\r?\n/);
+                    buffer = lines.pop(); 
+
+                    for (const line of lines) {
+                        processDecoderLine(line);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Erro na leitura:", error);
+        } finally {
+            reader.releaseLock();
+        }
+    }
+
+    function processDecoderLine(line) {
+        if (!state.isRunning) return;
+
+        const cleanLine = line.trim();
+        
+        state.drivers.forEach(driver => {
+            // Lógica Atualizada:
+            // 1. Tenta identificar pelo ID do Transponder
+            // 2. Se não tiver transponder cadastrado, tenta pelo Número do Kart (backup)
+            
+            const identifier = driver.transponder ? driver.transponder : driver.number;
+
+            if (identifier && cleanLine.includes(identifier)) {
+                const lastLapTime = driver.laps.length > 0 ? driver.laps[driver.laps.length - 1] : 0;
+                const now = state.elapsedTime;
+                
+                if ((now - lastLapTime) > 5000 || driver.laps.length === 0) {
+                    console.log(`Leitura USB detectada: ${driver.name} (ID: ${identifier})`);
+                    registerLap(driver.id);
+                }
+            }
+        });
+    }
+
+    // ============================================
+    // FIM INTEGRAÇÃO USB
+    // ============================================
+
     function listenBookings() {
         onSnapshot(query(collection(db, "agendamentos"), where("status", "==", "pendente")), (snap) => {
             const sel = document.getElementById('bookingSelect');
@@ -334,12 +456,13 @@
         state.drivers = data.drivers.map(p => ({
             id: Date.now() + Math.random(),
             number: "",
+            transponder: "", // Inicializa campo vazio
             name: p.name,
             laps: [],
             manualBest: null, manualLaps: null, manualPosition: null
         }));
         updateUI();
-        alert("Bateria carregada! Agora clique em cada piloto no grid para definir o Nº do Kart.");
+        alert("Bateria carregada! Agora clique em cada piloto para definir o Nº Kart e Transponder.");
     };
 
     window.checkManualAccess = () => {
@@ -376,6 +499,7 @@
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
         if (e.key >= '0' && e.key <= '9') {
             const kartNumber = e.key;
+            // Teclado continua funcionando apenas pelo numero do kart para agilidade
             const driver = state.drivers.find(d => d.number === kartNumber);
             if (driver && state.isRunning) {
                 registerLap(driver.id);
@@ -383,40 +507,28 @@
         }
     });
 
-    // --- FUNÇÃO CORRIGIDA E ATUALIZADA COM HISTÓRICO ---
     function registerLap(driverId) {
         const d = state.drivers.find(x => x.id === driverId);
         if (d) {
             const currentTime = state.elapsedTime;
-            
-            // Calculo para o histórico de passagens
             let lapTime = 0;
-            if(d.laps.length === 0) {
-                lapTime = currentTime; // Primeira volta é o tempo total até agora
-            } else {
-                lapTime = currentTime - d.laps[d.laps.length - 1]; // Volta atual menos a anterior
-            }
+            if(d.laps.length === 0) lapTime = currentTime; 
+            else lapTime = currentTime - d.laps[d.laps.length - 1];
 
-            // Adiciona timestamp da volta
             d.laps.push(currentTime);
 
-            // Incremento manual se necessário
-            if (d.manualLaps !== null && d.manualLaps !== undefined) {
-                d.manualLaps++;
-            }
+            if (d.manualLaps !== null && d.manualLaps !== undefined) d.manualLaps++;
 
             const displayLaps = (d.manualLaps !== null && d.manualLaps !== undefined) ? d.manualLaps : d.laps.length;
             const lapSpan = document.getElementById(`lap-display-${driverId}`);
             if(lapSpan) lapSpan.innerText = `${displayLaps} Voltas`;
 
-            // Flash no botão
             const btn = document.querySelector(`[data-kart-id="${driverId}"]`);
             if (btn) {
                 btn.classList.add('flash');
                 setTimeout(() => btn.classList.remove('flash'), 200);
             }
 
-            // ATUALIZAÇÃO DO HISTÓRICO DE PASSAGENS (DIREITA)
             const historyBody = document.getElementById('lapHistoryBody');
             const row = `<tr>
                 <td style="color:#aaa">${displayLaps}</td>
@@ -453,9 +565,7 @@
         document.getElementById('raceNameInput').value = "";
         document.getElementById('raceResponsibleInput').value = "";
         document.getElementById('raceCircuitSelect').value = "";
-        // Limpa o histórico de passagens
         document.getElementById('lapHistoryBody').innerHTML = "";
-        
         updateUI();
         syncLive(); 
     };
@@ -463,7 +573,7 @@
     window.addDriverToGrid = () => {
         const n = document.getElementById('addKartNum').value, p = document.getElementById('addKartName').value;
         if(n && p) { 
-            state.drivers.push({ id: Date.now(), number: n, name: p, laps: [], manualBest: null, manualLaps: null, manualPosition: null }); 
+            state.drivers.push({ id: Date.now(), number: n, transponder: "", name: p, laps: [], manualBest: null, manualLaps: null, manualPosition: null }); 
             updateUI();
             syncLive();
         }
@@ -500,6 +610,16 @@
             document.getElementById('mainTimer').innerText = formatTime(state.elapsedTime); 
         }, 33);
         document.getElementById('btnStart').style.display = 'none'; document.getElementById('btnPause').disabled = false; document.getElementById('btnFinish').disabled = false;
+        
+        // AUTO-HIDE CONFIG NA LARGADA
+        const container = document.getElementById('setupPanelContainer');
+        const btn = document.getElementById('btnToggleSetup');
+        if(container.style.display !== 'none') {
+            container.style.display = 'none';
+            btn.innerText = '🔽 Mostrar Configurações';
+            btn.classList.replace('btn-blue', 'btn-warn');
+        }
+
         syncLive();
     };
 
@@ -640,6 +760,8 @@
         document.getElementById('editDriverId').value = d.id;
         document.getElementById('editName').value = d.name;
         document.getElementById('editNum').value = d.number;
+        // Carrega o transponder se existir
+        document.getElementById('editTransponder').value = d.transponder || ""; 
         document.getElementById('editLaps').value = d.manualLaps !== null ? d.manualLaps : d.laps.length;
         document.getElementById('editBest').value = d.manualBest || "";
         document.getElementById('editPos').value = d.manualPosition || ""; 
@@ -652,11 +774,11 @@
         if(d) {
             d.name = document.getElementById('editName').value;
             d.number = document.getElementById('editNum').value;
+            // Salva o novo campo transponder
+            d.transponder = document.getElementById('editTransponder').value;
             
-            // Ajuste para permitir que o contador volte a ser automático se deixar o campo vazio
             const lapsInput = document.getElementById('editLaps').value;
             d.manualLaps = lapsInput === "" ? null : parseInt(lapsInput);
-            
             d.manualBest = document.getElementById('editBest').value;
             const posVal = document.getElementById('editPos').value;
             d.manualPosition = posVal ? parseInt(posVal) : null;
