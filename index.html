@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kart Manager Pro - Cronometragem - Sistema integrado</title>
-    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <style>
@@ -12,6 +12,7 @@
             --bg-dark: #121212; --bg-panel: #1e1e1e; --primary: #00e676;
             --secondary: #2979ff; --danger: #ff1744; --warning: #ffea00;
             --text-main: #ffffff; --text-muted: #b0b0b0;
+            --export-red: #ff1744;
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: 'Exo 2', sans-serif; background-color: var(--bg-dark); color: var(--text-main); margin: 0; display: flex; height: 100vh; overflow: hidden; }
@@ -66,18 +67,65 @@
         }
         
         #shareableResult { position: fixed; top: -9999px; left: -9999px; width: 1100px; background: #121212; padding: 40px; color: white; border: 5px solid var(--primary); visibility: hidden; }
+        
+        .ranking-export-container {
+            position: fixed; top: -9999px; left: -9999px;
+            background: radial-gradient(circle at center, #1e1e1e 0%, #000000 100%);
+            color: white; font-family: 'Exo 2', sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            border: 10px solid var(--export-red);
+            visibility: hidden;
+            box-sizing: border-box;
+            padding: 40px;
+        }
+
+        .speed-kart-title {
+            font-size: 6rem;
+            font-weight: 900;
+            font-style: italic;
+            color: #fff;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            text-shadow: 0 0 20px rgba(255, 23, 68, 0.8), 0 0 40px rgba(255, 23, 68, 0.4);
+            line-height: 1;
+        }
+
+        .ranking-subtitle {
+            font-size: 2rem;
+            color: #eee;
+            margin-bottom: 40px;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            border-bottom: 2px solid var(--export-red);
+            padding-bottom: 10px;
+        }
+
+        .ranking-row {
+            display: flex; justify-content: space-between; align-items: center;
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            margin-bottom: 15px;
+            padding: 15px 30px;
+            border-radius: 15px;
+            border-left: 8px solid transparent;
+        }
+        .ranking-row.top-1 { border-left-color: #ffd700; background: linear-gradient(90deg, rgba(255, 215, 0, 0.1), transparent); }
+        .ranking-row.top-2 { border-left-color: #c0c0c0; }
+        .ranking-row.top-3 { border-left-color: #cd7f32; }
+
+        .rank-pos { font-size: 2.2rem; font-weight: bold; width: 80px; color: var(--export-red); }
+        .rank-name { flex: 1; font-size: 1.8rem; font-weight: bold; text-align: left; padding-left: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+        .rank-time { font-family: 'Roboto Mono', monospace; font-size: 2rem; color: #fff; font-weight: bold; text-shadow: 0 0 10px var(--export-red); }
+
+        #exportFeed { width: 1080px; height: 1080px; }
+        #exportStory { width: 1080px; height: 1920px; justify-content: start; padding-top: 150px; }
+
         .legend { margin-top: 20px; font-size: 10px; color: #aaa; display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; border-top: 1px solid #333; padding-top: 10px; }
 
-        .race-split-container {
-            display: flex;
-            gap: 20px;
-            height: calc(100vh - 40px);
-        }
-        
+        .race-split-container { display: flex; gap: 20px; height: calc(100vh - 40px); }
         .race-left { flex: 1; overflow-y: auto; padding-right: 5px; }
         .race-right { flex: 1; display: flex; flex-direction: column; background: var(--bg-panel); border: 1px solid #333; border-radius: 12px; padding: 15px; overflow: hidden; }
         .history-log-container { flex: 1; overflow-y: auto; margin-top: 10px; }
-        
         .status-usb { font-size: 0.8rem; margin-top: 5px; color: #aaa; text-align: center; }
 
         @media (max-width: 768px) {
@@ -105,14 +153,13 @@
     <button class="nav-btn active" onclick="switchTab('race')"><span>⏱️ Corrida</span></button>
     <button class="nav-btn" onclick="switchTab('live')"><span>📺 Ao Vivo</span></button>
     <button class="nav-btn" onclick="switchTab('circuits')"><span>🛣️ Circuitos</span></button>
-    <button class="nav-btn" onclick="switchTab('results')"><span>🏆 Resultados</span></button>
+    <button class="nav-btn" onclick="switchTab('results')"><span>🏆 Histórico</span></button>
+    <button class="nav-btn" onclick="switchTab('ranking')"><span>🥇 Melhores</span></button>
 </nav>
 
 <div class="main-content">
     <div id="tab-race" class="tab-content active">
-        
         <div class="race-split-container">
-            
             <div class="race-left">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
                     <h2 style="margin:0;">Painel de Controle</h2>
@@ -183,13 +230,13 @@
                                 <th style="background:#222; position:sticky; top:0;">Kart</th>
                                 <th style="background:#222; position:sticky; top:0;">Piloto</th>
                                 <th style="background:#222; position:sticky; top:0;">T. Volta</th>
+                                <th style="background:#222; position:sticky; top:0;">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="lapHistoryBody"></tbody>
                     </table>
                 </div>
             </div>
-
         </div> 
     </div>
 
@@ -232,13 +279,102 @@
         <h2>Histórico de Baterias</h2>
         <div class="glass-panel">
             <div class="form-row">
-                <div style="flex:1"><label>Filtrar Dia:</label><input type="date" id="filterDate" onchange="loadHistory()" style="width:100%"></div>
-                <div style="flex:1"><label>Buscar Responsável:</label><input type="text" id="searchResponsible" placeholder="Nome do responsável..." onkeyup="loadHistory()" style="width:100%"></div>
+                <div style="flex:1">
+                    <label style="font-size:0.8rem; color:#aaa">De:</label>
+                    <input type="date" id="histStart" style="width:100%">
+                </div>
+                <div style="flex:1">
+                    <label style="font-size:0.8rem; color:#aaa">Até:</label>
+                    <input type="date" id="histEnd" style="width:100%">
+                </div>
+            </div>
+            <div class="form-row">
+                <div style="flex:1">
+                    <input type="text" id="histPilot" placeholder="Buscar por Piloto..." style="width:100%">
+                </div>
+                <div style="flex:1">
+                    <button class="btn btn-primary" onclick="loadHistory()">🔍 Filtrar Baterias</button>
+                </div>
             </div>
         </div>
         <div id="finalResultContainer"></div>
         <button class="btn btn-blue" onclick="generateImage()" style="width:100%; margin-top:10px;">📸 Baixar Resultado</button>
         <ul id="historyList" style="margin-top:20px; padding:0; list-style:none;"></ul>
+    </div>
+
+    <div id="tab-ranking" class="tab-content">
+        <h2>🥇 Ranking - Melhores Tempos</h2>
+        <div class="glass-panel">
+            <h4 style="margin-top:0; color:var(--primary)">Filtros de Pesquisa</h4>
+            <div class="form-row">
+                <div style="flex:1">
+                    <label style="font-size:0.8rem; color:#aaa">De:</label>
+                    <input type="date" id="rankStartDate">
+                </div>
+                <div style="flex:1">
+                    <label style="font-size:0.8rem; color:#aaa">Até:</label>
+                    <input type="date" id="rankEndDate">
+                </div>
+                <div style="flex:1">
+                    <label style="font-size:0.8rem; color:#aaa">Pista:</label>
+                    <select id="rankCircuitSelect"><option value="">Todas</option></select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div style="flex:1">
+                    <label style="font-size:0.8rem; color:#aaa">Tempo Mín (Seg):</label>
+                    <input type="text" id="rankMinTime" placeholder="Ex: 00:25.000">
+                </div>
+                <div style="flex:1">
+                    <label style="font-size:0.8rem; color:#aaa">Tempo Máx (Seg):</label>
+                    <input type="text" id="rankMaxTime" placeholder="Ex: 00:40.000">
+                </div>
+            </div>
+            <div class="form-row">
+                <div style="flex:1">
+                    <label style="font-size:0.8rem; color:#aaa">Gênero:</label>
+                    <select id="rankGender">
+                        <option value="all">Todos</option>
+                        <option value="M">Masculino</option>
+                        <option value="F">Feminino</option>
+                    </select>
+                </div>
+                <div style="flex:1">
+                    <label style="font-size:0.8rem; color:#aaa">Idade Mín:</label>
+                    <input type="number" id="rankMinAge" placeholder="Min">
+                </div>
+                <div style="flex:1">
+                    <label style="font-size:0.8rem; color:#aaa">Idade Máx:</label>
+                    <input type="number" id="rankMaxAge" placeholder="Max">
+                </div>
+                <div style="flex:1">
+                    <label style="font-size:0.8rem; color:#aaa">Top Pilotos:</label>
+                    <select id="rankLimit">
+                        <option value="10">Top 10</option>
+                        <option value="20">Top 20</option>
+                        <option value="50">Top 50</option>
+                        <option value="100">Top 100</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="loadRankings()" style="width:100%; margin-top:10px;">🔍 BUSCAR MELHORES TEMPOS</button>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-bottom:20px;">
+            <button class="btn btn-danger" onclick="generateRankingImage('feed')" style="flex:1;">📸 Gerar Imagem Vermelha (Feed)</button>
+            <button class="btn btn-danger" onclick="generateRankingImage('story')" style="flex:1; background:#b71c1c;">📸 Gerar Imagem Vermelha (Story)</button>
+        </div>
+
+        <div class="table-container">
+            <table id="rankingTable">
+                <thead>
+                    <tr><th>Pos</th><th>Piloto</th><th>Melhor Volta</th><th>Data</th><th>Bateria</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="5" style="text-align:center; padding:20px;">Utilize os filtros acima para buscar.</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
@@ -246,25 +382,28 @@
     <div class="modal-content">
         <h3>Editar Piloto</h3>
         <input type="hidden" id="editDriverId">
-        
         <label style="font-size:0.8rem; color:#aaa">Posição Forçada</label>
         <input type="number" id="editPos" placeholder="Ex: 1" style="width:100%; margin-bottom:10px; border: 1px solid var(--primary);">
-        
         <label style="font-size:0.8rem; color:#aaa">Nome</label>
         <input type="text" id="editName" placeholder="Nome" style="width:100%; margin-bottom:10px">
-        
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+            <div style="flex:1;">
+                <label style="font-size:0.8rem; color:#aaa">Gênero</label>
+                <select id="editGender" style="width:100%;"><option value="">N/D</option><option value="M">Masculino</option><option value="F">Feminino</option></select>
+            </div>
+            <div style="flex:1;">
+                <label style="font-size:0.8rem; color:#aaa">Idade</label>
+                <input type="number" id="editAgeInput" placeholder="Anos" style="width:100%;">
+            </div>
+        </div>
         <label style="font-size:0.8rem; color:#aaa">Nº do Kart (Display)</label>
         <input type="number" id="editNum" placeholder="Kart" style="width:100%; margin-bottom:10px">
-        
         <label style="font-size:0.8rem; color:var(--secondary); font-weight:bold;">ID Transponder (Decoder AMB)</label>
         <input type="text" id="editTransponder" placeholder="Ex: 1234567" style="width:100%; margin-bottom:10px; border: 1px solid var(--secondary);">
-
         <label style="font-size:0.8rem; color:#aaa">Ajuste de Voltas</label>
         <input type="number" id="editLaps" placeholder="Voltas" style="width:100%; margin-bottom:10px">
-        
         <label style="font-size:0.8rem; color:#aaa">Ajuste Melhor Volta</label>
         <input type="text" id="editBest" placeholder="Melhor (MM:SS.mmm)" style="width:100%; margin-bottom:10px">
-        
         <button class="btn btn-primary" onclick="saveDriverEdit()" style="width:100%; margin-bottom:10px;">Salvar</button>
         <button class="btn" onclick="document.getElementById('editModal').style.display='none'" style="width:100%;">Fechar</button>
     </div>
@@ -278,11 +417,18 @@
         <thead><tr style="background:var(--primary); color:black"><th>POS</th><th>PILOTO</th><th>MV</th><th>TMV</th><th>TT</th><th>DL</th><th>DA</th><th>TV</th><th>VM</th></tr></thead>
         <tbody id="shareTableBody"></tbody>
     </table>
-    <div class="legend">
-        <span><b>POS:</b> Posição</span><span><b>MV:</b> Volta da Melhor</span><span><b>TMV:</b> Tempo Melhor Volta</span>
-        <span><b>TT:</b> Tempo Total</span><span><b>DL:</b> Dif. Lider</span><span><b>DA:</b> Dif. Anterior</span>
-        <span><b>TV:</b> Total Voltas</span><span><b>VM:</b> Velocidade Média</span>
-    </div>
+</div>
+
+<div id="exportFeed" class="ranking-export-container">
+    <div class="speed-kart-title">SPEED KART</div>
+    <div class="ranking-subtitle">Ranking - Melhores Tempos</div>
+    <div id="feedListBody" style="width:100%;"></div>
+</div>
+
+<div id="exportStory" class="ranking-export-container">
+    <div class="speed-kart-title" style="font-size: 8rem; margin-bottom: 20px;">SPEED KART</div>
+    <div class="ranking-subtitle" style="margin-bottom: 60px;">Ranking Oficial</div>
+    <div id="storyListBody" style="width:100%;"></div>
 </div>
 
 <script type="module">
@@ -298,85 +444,46 @@
     const db = getFirestore(app);
 
     let state = { drivers: [], raceStartTime: 0, elapsedTime: 0, isRunning: false, timerInterval: null, circuit: null, currentBookingId: null };
-    let liveListener = null;
-    let liveTimerInterval = null;
+    let liveListener = null, liveTimerInterval = null;
 
-    // ============================================
-    // FUNÇÃO DE TOGGLE DO SETUP
-    // ============================================
-    window.toggleSetup = () => {
-        const container = document.getElementById('setupPanelContainer');
-        const btn = document.getElementById('btnToggleSetup');
-        if (container.style.display === 'none') {
-            container.style.display = 'block';
-            btn.innerText = '🔼 Ocultar Configurações';
-            btn.classList.replace('btn-warn', 'btn-blue');
-        } else {
-            container.style.display = 'none';
-            btn.innerText = '🔽 Mostrar Configurações';
-            btn.classList.replace('btn-blue', 'btn-warn');
+    // EVENT LISTENER ADICIONADO PARA O TECLADO NUMÉRICO
+    document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+        if (e.key >= '0' && e.key <= '9') {
+            const driver = state.drivers.find(d => d.number === e.key);
+            if (driver && state.isRunning) {
+                registerLap(driver.id);
+            }
         }
+    });
+
+    window.toggleSetup = () => {
+        const container = document.getElementById('setupPanelContainer'), btn = document.getElementById('btnToggleSetup');
+        if (container.style.display === 'none') { container.style.display = 'block'; btn.innerText = '🔼 Ocultar Configurações'; btn.classList.replace('btn-warn', 'btn-blue'); } 
+        else { container.style.display = 'none'; btn.innerText = '🔽 Mostrar Configurações'; btn.classList.replace('btn-blue', 'btn-warn'); }
     };
 
-    // ============================================
-    // INTEGRAÇÃO USB / SERIAL (AMB 600)
-    // ============================================
-    let port;
-    let reader;
-    let keepReading = false;
-    let isUsbConnected = false;
-
+    let port, reader, keepReading = false, isUsbConnected = false;
     window.connectSerialDecoder = async () => {
-        // LÓGICA DE DESCONEXÃO
         if (isUsbConnected) {
             keepReading = false;
-            if (reader) {
-                try { await reader.cancel(); } catch(e) { console.log(e); }
-                reader = null;
-            }
-            if (port) {
-                try { await port.close(); } catch(e) { console.log(e); }
-                port = null;
-            }
-            
-            // Reseta a UI
+            if (reader) { try { await reader.cancel(); } catch(e) {} reader = null; }
+            if (port) { try { await port.close(); } catch(e) {} port = null; }
             document.getElementById('usbStatus').innerText = "Desconectado";
             document.getElementById('usbStatus').style.color = "#aaa";
-            const btn = document.getElementById('btnConnectUSB');
-            btn.innerText = "🔌 Conectar Decoder (USB)";
-            btn.classList.remove('btn-danger');
-            btn.classList.add('btn-usb');
-            
-            isUsbConnected = false;
-            return;
+            const btn = document.getElementById('btnConnectUSB'); btn.innerText = "🔌 Conectar Decoder (USB)"; btn.classList.remove('btn-danger'); btn.classList.add('btn-usb');
+            isUsbConnected = false; return;
         }
-
-        // LÓGICA DE CONEXÃO
         if ("serial" in navigator) {
             try {
                 port = await navigator.serial.requestPort();
                 await port.open({ baudRate: 9600 });
-                
                 document.getElementById('usbStatus').innerText = "Conectado à Porta Serial (AMB 600)";
                 document.getElementById('usbStatus').style.color = "#04d361";
-                
-                // Atualiza botão para modo DESATIVAR
-                const btn = document.getElementById('btnConnectUSB');
-                btn.innerText = "❌ Desativar USB";
-                btn.classList.remove('btn-usb');
-                btn.classList.add('btn-danger');
-                
-                isUsbConnected = true;
-                keepReading = true;
-                readSerialLoop();
-
-            } catch (err) {
-                console.error("Erro Serial:", err);
-                alert("Erro ao conectar na COM5/USB. Verifique se o cabo está conectado ou se outra aba está usando a porta.");
-            }
-        } else {
-            alert("Seu navegador não suporta Web Serial API. Use Chrome ou Edge.");
-        }
+                const btn = document.getElementById('btnConnectUSB'); btn.innerText = "❌ Desativar USB"; btn.classList.remove('btn-usb'); btn.classList.add('btn-danger');
+                isUsbConnected = true; keepReading = true; readSerialLoop();
+            } catch (err) { alert("Erro ao conectar na Porta."); }
+        } else { alert("Navegador não suporta Web Serial API."); }
     };
 
     async function readSerialLoop() {
@@ -384,55 +491,32 @@
         const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
         reader = textDecoder.readable.getReader();
         let buffer = "";
-
         try {
             while (keepReading) {
                 const { value, done } = await reader.read();
-                if (done) { break; }
+                if (done) break;
                 if (value) {
                     buffer += value;
                     let lines = buffer.split(/\r?\n/);
                     buffer = lines.pop(); 
-
-                    for (const line of lines) {
-                        processDecoderLine(line);
-                    }
+                    for (const line of lines) processDecoderLine(line);
                 }
             }
-        } catch (error) {
-            console.error("Erro na leitura:", error);
-        } finally {
-            reader.releaseLock();
-        }
+        } catch (error) {} finally { reader.releaseLock(); }
     }
 
     function processDecoderLine(line) {
         if (!state.isRunning) return;
-
         const cleanLine = line.trim();
-        
         state.drivers.forEach(driver => {
-            // Lógica Atualizada:
-            // 1. Tenta identificar pelo ID do Transponder
-            // 2. Se não tiver transponder cadastrado, tenta pelo Número do Kart (backup)
-            
             const identifier = driver.transponder ? driver.transponder : driver.number;
-
             if (identifier && cleanLine.includes(identifier)) {
                 const lastLapTime = driver.laps.length > 0 ? driver.laps[driver.laps.length - 1] : 0;
                 const now = state.elapsedTime;
-                
-                if ((now - lastLapTime) > 5000 || driver.laps.length === 0) {
-                    console.log(`Leitura USB detectada: ${driver.name} (ID: ${identifier})`);
-                    registerLap(driver.id);
-                }
+                if ((now - lastLapTime) > 5000 || driver.laps.length === 0) registerLap(driver.id);
             }
         });
     }
-
-    // ============================================
-    // FIM INTEGRAÇÃO USB
-    // ============================================
 
     function listenBookings() {
         onSnapshot(query(collection(db, "agendamentos"), where("status", "==", "pendente")), (snap) => {
@@ -454,128 +538,138 @@
         document.getElementById('raceResponsibleInput').value = data.responsible || "";
         document.getElementById('raceMode').value = data.mode || "corrida";
         state.drivers = data.drivers.map(p => ({
-            id: Date.now() + Math.random(),
-            number: "",
-            transponder: "", // Inicializa campo vazio
-            name: p.name,
-            laps: [],
-            manualBest: null, manualLaps: null, manualPosition: null
+            id: Date.now() + Math.random(), number: "", transponder: "", name: p.name,
+            laps: [], manualBest: null, manualLaps: null, manualPosition: null, gender: null, age: null
         }));
-        updateUI();
-        alert("Bateria carregada! Agora clique em cada piloto para definir o Nº Kart e Transponder.");
+        updateUI(); alert("Bateria carregada!");
     };
 
     window.checkManualAccess = () => {
-        const pass = prompt("Digite a senha para liberar o cadastro manual:");
-        if(pass === "112512") {
+        if(prompt("Digite a senha:") === "112512") {
             document.getElementById('manualEntrySection').style.display = 'block';
             document.getElementById('btnUnlockManual').style.display = 'none';
-        } else {
-            alert("Senha incorreta!");
-        }
+        } else alert("Senha incorreta!");
     };
 
     async function syncLive() {
-        const raceName = document.getElementById('raceNameInput').value || "Bateria Ao Vivo";
-        const responsible = document.getElementById('raceResponsibleInput').value || "";
-        const mode = document.getElementById('raceMode').value;
         const payload = {
-            raceName: raceName,
-            responsible: responsible,
-            drivers: state.drivers,
-            startTime: state.raceStartTime, 
-            elapsedAtPause: state.elapsedTime, 
-            isRunning: state.isRunning,
-            circuit: state.circuit,
-            mode: mode,
+            raceName: document.getElementById('raceNameInput').value || "Bateria Ao Vivo",
+            responsible: document.getElementById('raceResponsibleInput').value || "",
+            drivers: state.drivers, startTime: state.raceStartTime, 
+            elapsedAtPause: state.elapsedTime, isRunning: state.isRunning,
+            circuit: state.circuit, mode: document.getElementById('raceMode').value,
             timestamp: Date.now()
         };
-        try {
-            await setDoc(doc(db, "live", "current"), payload);
-        } catch(e) { console.error("Erro sync:", e); }
+        try { await setDoc(doc(db, "live", "current"), payload); } catch(e) {}
     }
 
-    document.addEventListener('keydown', (e) => {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
-        if (e.key >= '0' && e.key <= '9') {
-            const kartNumber = e.key;
-            // Teclado continua funcionando apenas pelo numero do kart para agilidade
-            const driver = state.drivers.find(d => d.number === kartNumber);
-            if (driver && state.isRunning) {
-                registerLap(driver.id);
-            }
-        }
-    });
+    function renderHistoryTable() {
+        const tbody = document.getElementById('lapHistoryBody');
+        tbody.innerHTML = "";
+        let allLaps = [];
+        
+        state.drivers.forEach(d => {
+            (d.laps || []).forEach((time, idx) => {
+                const prev = (idx === 0) ? 0 : d.laps[idx-1];
+                const lapTime = time - prev;
+                const displayLaps = (d.manualLaps !== null && d.manualLaps !== undefined) ? (d.manualLaps - (d.laps.length - 1 - idx)) : (idx + 1);
+                
+                allLaps.push({
+                    driverId: d.id,
+                    name: d.name,
+                    number: d.number,
+                    lapNo: idx + 1,
+                    displayLaps: displayLaps,
+                    time: time,
+                    duration: lapTime
+                });
+            });
+        });
+
+        allLaps.sort((a,b) => b.time - a.time);
+
+        allLaps.forEach(l => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="color:#aaa">${l.displayLaps}</td>
+                <td style="font-weight:bold; color:var(--warning)">#${l.number}</td>
+                <td>${l.name}</td>
+                <td style="color:var(--primary)">${formatTime(l.duration)}</td>
+                <td>
+                    <button class="btn btn-blue" style="padding:2px 5px; font-size:0.7rem;" onclick="editLap(${l.driverId}, ${l.lapNo - 1})">✏️</button>
+                    <button class="btn btn-danger" style="padding:2px 5px; font-size:0.7rem;" onclick="deleteLap(${l.driverId}, ${l.lapNo - 1})">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
 
     function registerLap(driverId) {
         const d = state.drivers.find(x => x.id === driverId);
         if (d) {
             const currentTime = state.elapsedTime;
-            let lapTime = 0;
-            if(d.laps.length === 0) lapTime = currentTime; 
-            else lapTime = currentTime - d.laps[d.laps.length - 1];
-
             d.laps.push(currentTime);
-
-            if (d.manualLaps !== null && d.manualLaps !== undefined) d.manualLaps++;
-
-            const displayLaps = (d.manualLaps !== null && d.manualLaps !== undefined) ? d.manualLaps : d.laps.length;
-            const lapSpan = document.getElementById(`lap-display-${driverId}`);
-            if(lapSpan) lapSpan.innerText = `${displayLaps} Voltas`;
-
+            if (d.manualLaps !== null) d.manualLaps++;
             const btn = document.querySelector(`[data-kart-id="${driverId}"]`);
-            if (btn) {
-                btn.classList.add('flash');
-                setTimeout(() => btn.classList.remove('flash'), 200);
-            }
-
-            const historyBody = document.getElementById('lapHistoryBody');
-            const row = `<tr>
-                <td style="color:#aaa">${displayLaps}</td>
-                <td style="font-weight:bold; color:var(--warning)">#${d.number}</td>
-                <td>${d.name}</td>
-                <td style="color:var(--primary)">${formatTime(lapTime)}</td>
-            </tr>`;
-            historyBody.insertAdjacentHTML('afterbegin', row);
-            
-            renderLiveTable();
+            if (btn) { btn.classList.add('flash'); setTimeout(() => btn.classList.remove('flash'), 200); }
+            renderHistoryTable();
+            renderLiveTable(); 
             syncLive(); 
         }
     }
+
+    window.deleteLap = (driverId, lapIndex) => {
+        if(!confirm("Deseja realmente apagar esta volta?")) return;
+        const d = state.drivers.find(x => x.id === driverId);
+        if(d) {
+            d.laps.splice(lapIndex, 1);
+            if(d.manualLaps !== null) d.manualLaps--;
+            renderHistoryTable();
+            renderLiveTable();
+            syncLive();
+        }
+    };
+
+    window.editLap = (driverId, lapIndex) => {
+        const d = state.drivers.find(x => x.id === driverId);
+        if(!d) return;
+        const prevTime = (lapIndex === 0) ? 0 : d.laps[lapIndex - 1];
+        const currentDuration = d.laps[lapIndex] - prevTime;
+        const newTimeStr = prompt("Edite o tempo da volta (MM:SS.mmm):", formatTime(currentDuration));
+        if(!newTimeStr) return;
+        const newDuration = parseTimeStr(newTimeStr);
+        if(newDuration === Infinity) return alert("Formato inválido!");
+        d.laps[lapIndex] = prevTime + newDuration;
+        renderHistoryTable();
+        renderLiveTable();
+        syncLive();
+    };
 
     window.switchTab = (tab) => {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         const t = document.getElementById(`tab-${tab}`); if(t) t.classList.add('active');
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         if (window.event?.currentTarget?.tagName === 'BUTTON') window.event.currentTarget.classList.add('active');
-        else {
-            const map = { 'race':0, 'live':1, 'circuits':2, 'results':3 };
-            const btns = document.querySelectorAll('.nav-btn');
-            if(btns[map[tab]]) btns[map[tab]].classList.add('active');
-        }
-        if(tab === 'live') { if(!liveListener) initLiveView(); } 
+        if(tab === 'live' && !liveListener) initLiveView(); 
     };
 
     window.newRace = () => {
-        if(!confirm("Limpar dados para nova bateria?")) return;
+        if(!confirm("Limpar dados?")) return;
         state.drivers = []; state.elapsedTime = 0; state.isRunning = false; state.circuit = null; state.currentBookingId = null;
         clearInterval(state.timerInterval);
         document.getElementById('mainTimer').innerText = "00:00.000";
         document.getElementById('btnStart').style.display = 'inline-block';
         document.getElementById('raceNameInput').value = "";
         document.getElementById('raceResponsibleInput').value = "";
-        document.getElementById('raceCircuitSelect').value = "";
         document.getElementById('lapHistoryBody').innerHTML = "";
-        updateUI();
-        syncLive(); 
+        updateUI(); syncLive(); 
     };
 
     window.addDriverToGrid = () => {
         const n = document.getElementById('addKartNum').value, p = document.getElementById('addKartName').value;
         if(n && p) { 
-            state.drivers.push({ id: Date.now(), number: n, transponder: "", name: p, laps: [], manualBest: null, manualLaps: null, manualPosition: null }); 
-            updateUI();
-            syncLive();
+            state.drivers.push({ id: Date.now(), number: n, transponder: "", name: p, laps: [], manualBest: null, manualLaps: null, manualPosition: null, gender: null, age: null }); 
+            updateUI(); syncLive();
         }
         document.getElementById('addKartNum').value = ""; document.getElementById('addKartName').value = "";
     };
@@ -583,71 +677,43 @@
     function updateUI() {
         const grid = document.getElementById('kartGrid'); grid.innerHTML = '';
         state.drivers.forEach((d) => {
-            const b = document.createElement('div'); 
-            b.className = 'kart-btn';
-            b.setAttribute('data-kart-id', d.id);
-            const displayLaps = (d.manualLaps !== null && d.manualLaps !== undefined) ? d.manualLaps : d.laps.length;
-            b.innerHTML = `<span class="k-num">${d.number ? '#'+d.number : '?'}</span>
-                           <span>${d.name}</span>
-                           <span id="lap-display-${d.id}" style="color:var(--text-muted); font-size:0.9rem; margin-top:5px;">${displayLaps} Voltas</span>`;
-            b.onclick = () => { 
-                if(state.isRunning) registerLap(d.id); 
-                else openEditModal(d.id); 
-            };
+            const b = document.createElement('div'); b.className = 'kart-btn'; b.setAttribute('data-kart-id', d.id);
+            const displayLaps = (d.manualLaps !== null) ? d.manualLaps : (d.laps || []).length;
+            b.innerHTML = `<span class="k-num">${d.number ? '#'+d.number : '?'}</span><span>${d.name}</span><span id="lap-display-${d.id}" style="color:var(--text-muted); font-size:0.9rem; margin-top:5px;">${displayLaps} Voltas</span>`;
+            b.onclick = () => { if(state.isRunning) registerLap(d.id); else openEditModal(d.id); };
             grid.appendChild(b);
         });
         renderLiveTable();
+        renderHistoryTable();
     }
 
     window.toggleStart = () => {
         const cVal = document.getElementById('raceCircuitSelect').value;
         if(!cVal) return alert("Selecione a pista");
         state.circuit = JSON.parse(cVal); state.isRunning = true;
-        if (state.elapsedTime === 0) state.raceStartTime = Date.now();
-        else state.raceStartTime = Date.now() - state.elapsedTime;
-        state.timerInterval = setInterval(() => { 
-            state.elapsedTime = Date.now() - state.raceStartTime; 
-            document.getElementById('mainTimer').innerText = formatTime(state.elapsedTime); 
-        }, 33);
+        state.raceStartTime = (state.elapsedTime === 0) ? Date.now() : Date.now() - state.elapsedTime;
+        state.timerInterval = setInterval(() => { state.elapsedTime = Date.now() - state.raceStartTime; document.getElementById('mainTimer').innerText = formatTime(state.elapsedTime); }, 33);
         document.getElementById('btnStart').style.display = 'none'; document.getElementById('btnPause').disabled = false; document.getElementById('btnFinish').disabled = false;
-        
-        // AUTO-HIDE CONFIG NA LARGADA
-        const container = document.getElementById('setupPanelContainer');
-        const btn = document.getElementById('btnToggleSetup');
-        if(container.style.display !== 'none') {
-            container.style.display = 'none';
-            btn.innerText = '🔽 Mostrar Configurações';
-            btn.classList.replace('btn-blue', 'btn-warn');
-        }
-
+        if(document.getElementById('setupPanelContainer').style.display !== 'none') toggleSetup();
         syncLive();
     };
 
-    window.togglePause = () => { 
-        state.isRunning = false; 
-        clearInterval(state.timerInterval); 
-        document.getElementById('btnStart').style.display = 'inline-block'; 
-        syncLive();
-    };
+    window.togglePause = () => { state.isRunning = false; clearInterval(state.timerInterval); document.getElementById('btnStart').style.display = 'inline-block'; syncLive(); };
 
     window.finishRace = async () => {
         if(!confirm("Salvar resultados?")) return;
         togglePause();
         const results = calculateFinalStats();
+        // Adicionamos o elapsedTime total e os laps brutos para garantir carregamento futuro
         await addDoc(collection(db, "races"), { 
             raceName: document.getElementById('raceNameInput').value || "Bateria", 
             responsible: document.getElementById('raceResponsibleInput').value || "",
-            circuit: state.circuit, 
-            date: Timestamp.now(), 
-            drivers: results 
+            circuit: state.circuit, date: Timestamp.now(), drivers: results,
+            rawElapsedTime: state.elapsedTime, 
+            originalDrivers: state.drivers // Cópia fiel para restauração
         });
-        if(state.currentBookingId) {
-            try { await updateDoc(doc(db, "agendamentos", state.currentBookingId), { status: "encerrado" }); state.currentBookingId = null; }
-            catch(e) { console.error("Erro ao dar baixa no caixa", e); }
-        }
-        alert("Bateria salva e finalizada no Caixa!"); 
-        loadHistory();
-        syncLive();
+        if(state.currentBookingId) { await updateDoc(doc(db, "agendamentos", state.currentBookingId), { status: "encerrado" }); state.currentBookingId = null; }
+        alert("Bateria salva!"); loadHistory(); syncLive();
     };
 
     function parseTimeStr(str) {
@@ -662,28 +728,25 @@
     function calculateStatsFromData(drivers, mode, trackLen) {
         let stats = drivers.map(d => {
             let bestLapMs = Infinity, bestLapIdx = 0, prevTime = 0, lastLapMs = 0;
-            const laps = d.laps || [];
-            laps.forEach((curr, i) => { 
+            (d.laps || []).forEach((curr, i) => { 
                 let lap = curr - prevTime; 
                 if(lap < bestLapMs) { bestLapMs = lap; bestLapIdx = i + 1; } 
-                prevTime = curr; 
-                if(i === laps.length - 1) lastLapMs = lap;
+                prevTime = curr; if(i === (d.laps || []).length - 1) lastLapMs = lap;
             });
             if(d.manualBest) bestLapMs = parseTimeStr(d.manualBest);
-            const totalV = d.manualLaps !== null && d.manualLaps !== undefined ? d.manualLaps : laps.length;
-            const totalMs = laps.length > 0 ? laps[laps.length-1] : 0;
+            const totalV = d.manualLaps !== null ? d.manualLaps : (d.laps || []).length;
+            const totalMs = (d.laps || []).length > 0 ? d.laps[(d.laps || []).length-1] : 0;
             const avgSpd = (bestLapMs !== Infinity && trackLen > 0) ? (trackLen / (bestLapMs / 1000)) * 3.6 : 0;
             return { 
-                id: d.id, name: d.name, number: d.number, 
-                laps: totalV, bestLapIdx, bestLapMs, 
-                bestLapDisplay: d.manualBest || formatTime(bestLapMs), 
-                totalMs, avgSpd,
-                lastLapDisplay: laps.length > 0 ? formatTime(lastLapMs) : "--:--.---",
-                manualPosition: d.manualPosition
+                id: d.id, name: d.name, number: d.number, gender: d.gender, age: d.age, lapsRaw: d.laps, transponder: d.transponder,
+                laps: totalV, bestLapIdx, bestLapMs, bestLapDisplay: d.manualBest || formatTime(bestLapMs), 
+                totalMs, avgSpd, lastLapDisplay: (d.laps || []).length > 0 ? formatTime(lastLapMs) : "--:--.---",
+                manualPosition: d.manualPosition, manualBest: d.manualBest, manualLaps: d.manualLaps
             };
         });
         if(mode === "tomada") stats.sort((a,b) => a.bestLapMs - b.bestLapMs);
         else stats.sort((a,b) => b.laps - a.laps || a.totalMs - b.totalMs);
+        
         if (stats.some(s => s.manualPosition)) {
             const fixed = stats.filter(s => s.manualPosition).sort((a,b) => a.manualPosition - b.manualPosition);
             let floating = stats.filter(s => !s.manualPosition);
@@ -694,20 +757,18 @@
                 if (forcedDriver) finalOrder.push(forcedDriver);
                 else if (floating.length > 0) finalOrder.push(floating.shift());
             }
-            finalOrder = [...finalOrder, ...floating];
             stats = finalOrder;
         }
         return stats.map((s, i) => ({ 
             ...s, 
-            dl: i === 0 ? "-" : (s.laps < stats[0].laps ? `+${stats[0].laps - s.laps}v` : `+${formatTime(s.totalMs - stats[0].totalMs)}`), 
-            da: i === 0 ? "-" : (s.laps < stats[i-1].laps ? `+${stats[i-1].laps - s.laps}v` : `+${formatTime(s.totalMs - stats[i-1].totalMs)}`) 
+            dl: i === 0 ? "-" : `+${formatTime(Math.abs(s.totalMs - stats[0].totalMs))}`, 
+            da: i === 0 ? "-" : `+${formatTime(Math.abs(s.totalMs - stats[i-1].totalMs))}`
         }));
     }
 
     function calculateFinalStats() {
         const trackLen = parseFloat(state.circuit?.length || 0);
-        const mode = document.getElementById('raceMode').value;
-        return calculateStatsFromData(state.drivers, mode, trackLen);
+        return calculateStatsFromData(state.drivers, document.getElementById('raceMode').value, trackLen);
     }
 
     function renderLiveTable() {
@@ -722,12 +783,7 @@
 
     function initLiveView() {
         liveListener = onSnapshot(doc(db, "live", "current"), (docSnap) => {
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                renderViewerData(data);
-            } else {
-                document.getElementById('liveRaceTitle').innerText = "SEM CORRIDA ATIVA";
-            }
+            if (docSnap.exists()) renderViewerData(docSnap.data());
         });
     }
 
@@ -735,20 +791,12 @@
         document.getElementById('liveRaceTitle').innerText = data.raceName || "AO VIVO";
         document.getElementById('liveCircuitInfo').innerText = data.circuit ? `${data.circuit.name} (${data.circuit.length}m)` : "";
         clearInterval(liveTimerInterval);
-        if (data.isRunning) {
-            liveTimerInterval = setInterval(() => {
-                const currentElapsed = Date.now() - data.startTime;
-                document.getElementById('liveTimer').innerText = formatTime(currentElapsed);
-            }, 33);
-        } else {
-            document.getElementById('liveTimer').innerText = formatTime(data.elapsedAtPause || 0);
-        }
-        const trackLen = parseFloat(data.circuit?.length || 0);
-        const stats = calculateStatsFromData(data.drivers || [], data.mode || "corrida", trackLen);
+        if (data.isRunning) { liveTimerInterval = setInterval(() => { document.getElementById('liveTimer').innerText = formatTime(Date.now() - data.startTime); }, 33); } 
+        else { document.getElementById('liveTimer').innerText = formatTime(data.elapsedAtPause || 0); }
+        const stats = calculateStatsFromData(data.drivers || [], data.mode || "corrida", parseFloat(data.circuit?.length || 0));
         let globalBest = stats.reduce((prev, curr) => (prev.bestLapMs < curr.bestLapMs) ? prev : curr, {bestLapMs: Infinity});
         const header = document.getElementById('liveBestLapHeader');
-        if(globalBest.bestLapMs !== Infinity) header.innerText = `Melhor Volta da Corrida: ${globalBest.bestLapDisplay} (#${globalBest.number} ${globalBest.name})`;
-        else header.innerText = "Melhor Volta da Corrida: --:--.--- (--)";
+        header.innerText = globalBest.bestLapMs !== Infinity ? `Melhor Volta: ${globalBest.bestLapDisplay} (#${globalBest.number} ${globalBest.name})` : "--:--.---";
         const tb = document.getElementById('liveViewBody'); tb.innerHTML = '';
         stats.forEach((d, i) => {
             tb.innerHTML += `<tr><td>${i+1}º</td><td>#${d.number} ${d.name}</td><td>${d.bestLapIdx}</td><td>${d.bestLapDisplay}</td><td>${formatTime(d.totalMs)}</td><td>${d.dl}</td><td>${d.da}</td><td>${d.laps}</td><td>${d.avgSpd.toFixed(1)}</td></tr>`;
@@ -760,11 +808,12 @@
         document.getElementById('editDriverId').value = d.id;
         document.getElementById('editName').value = d.name;
         document.getElementById('editNum').value = d.number;
-        // Carrega o transponder se existir
         document.getElementById('editTransponder').value = d.transponder || ""; 
-        document.getElementById('editLaps').value = d.manualLaps !== null ? d.manualLaps : d.laps.length;
+        document.getElementById('editLaps').value = d.manualLaps !== null ? d.manualLaps : (d.laps || []).length;
         document.getElementById('editBest').value = d.manualBest || "";
         document.getElementById('editPos').value = d.manualPosition || ""; 
+        document.getElementById('editGender').value = d.gender || "";
+        document.getElementById('editAgeInput').value = d.age || "";
         document.getElementById('editModal').style.display = 'block';
     };
 
@@ -774,17 +823,14 @@
         if(d) {
             d.name = document.getElementById('editName').value;
             d.number = document.getElementById('editNum').value;
-            // Salva o novo campo transponder
             d.transponder = document.getElementById('editTransponder').value;
-            
-            const lapsInput = document.getElementById('editLaps').value;
-            d.manualLaps = lapsInput === "" ? null : parseInt(lapsInput);
+            d.gender = document.getElementById('editGender').value;
+            d.age = document.getElementById('editAgeInput').value ? parseInt(document.getElementById('editAgeInput').value) : null;
+            d.manualLaps = document.getElementById('editLaps').value === "" ? null : parseInt(document.getElementById('editLaps').value);
             d.manualBest = document.getElementById('editBest').value;
-            const posVal = document.getElementById('editPos').value;
-            d.manualPosition = posVal ? parseInt(posVal) : null;
+            d.manualPosition = document.getElementById('editPos').value ? parseInt(document.getElementById('editPos').value) : null;
             document.getElementById('editModal').style.display = 'none';
-            updateUI();
-            syncLive();
+            updateUI(); syncLive();
         }
     };
 
@@ -796,10 +842,11 @@
     };
 
     window.loadCircuits = async () => {
-        const snap = await getDocs(collection(db, "circuits")), sel = document.getElementById('raceCircuitSelect'), tb = document.querySelector('#circuitsTable tbody');
-        sel.innerHTML = '<option value="">Selecione...</option>'; tb.innerHTML = '';
+        const snap = await getDocs(collection(db, "circuits")), sel = document.getElementById('raceCircuitSelect'), rankSel = document.getElementById('rankCircuitSelect'), tb = document.querySelector('#circuitsTable tbody');
+        sel.innerHTML = '<option value="">Selecione...</option>'; tb.innerHTML = ''; rankSel.innerHTML = '<option value="">Todas</option>';
         snap.forEach(d => {
             const data = d.data(); sel.innerHTML += `<option value='${JSON.stringify({id: d.id, ...data})}'>${data.name}</option>`;
+            rankSel.innerHTML += `<option value='${data.name}'>${data.name}</option>`;
             tb.innerHTML += `<tr><td>${data.name}</td><td>${data.length}m</td><td><button onclick='editCircuit("${d.id}", ${JSON.stringify(data)})'>✏️</button></td></tr>`;
         });
     };
@@ -807,31 +854,77 @@
     window.editCircuit = (id, data) => { document.getElementById('editCircuitId').value = id; document.getElementById('circuitName').value = data.name; document.getElementById('circuitLength').value = data.length; };
 
     window.loadHistory = async () => {
-        const dateFilter = document.getElementById('filterDate').value;
-        const respFilter = document.getElementById('searchResponsible').value.toLowerCase();
+        const startDate = document.getElementById('histStart').value;
+        const endDate = document.getElementById('histEnd').value;
+        const pilotName = document.getElementById('histPilot').value.toLowerCase();
         let qry = query(collection(db, "races"), orderBy("date", "desc"));
-        if(dateFilter) {
-            const start = new Date(dateFilter + "T00:00:00"), end = new Date(dateFilter + "T23:59:59");
-            qry = query(collection(db, "races"), where("date", ">=", start), where("date", "<=", end));
-        }
-        const snap = await getDocs(qry), list = document.getElementById('historyList'); list.innerHTML = '';
+        const snap = await getDocs(qry);
+        const list = document.getElementById('historyList'); list.innerHTML = '';
         snap.forEach(d => {
             const data = d.data();
-            if(respFilter && !data.responsible?.toLowerCase().includes(respFilter)) return;
-            const li = document.createElement('li');
+            const raceDate = data.date.toDate();
+            const raceDateStr = raceDate.toISOString().split('T')[0];
+            if(startDate && raceDateStr < startDate) return;
+            if(endDate && raceDateStr > endDate) return;
+            if(pilotName) {
+                const hasPilot = data.drivers.some(driver => driver.name.toLowerCase().includes(pilotName));
+                if(!hasPilot) return;
+            }
+            const li = document.createElement('li'); 
             li.style.cssText = "padding:10px; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center;";
-            li.innerHTML = `<div><span style="color:var(--primary); font-weight:bold;">${data.raceName}</span><br><small style="color:#888;">${data.date.toDate().toLocaleDateString()} ${data.date.toDate().toLocaleTimeString()} | Resp: ${data.responsible || 'N/A'}</small></div> <button class="btn btn-blue" style="padding:5px 10px; font-size:0.8rem" onclick='viewResult(${JSON.stringify(data)})'>Ver</button>`;
+            const dataStr = JSON.stringify(data).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+            li.innerHTML = `
+                <div><span style="color:var(--primary); font-weight:bold;">${data.raceName}</span><br>
+                <small style="color:#888;">${raceDate.toLocaleDateString()} ${raceDate.toLocaleTimeString()} | Resp: ${data.responsible || 'N/A'}</small></div> 
+                <div style="display:flex; gap:5px;">
+                    <button class="btn btn-blue" onclick='viewResult(${dataStr})'>📄 Ver</button>
+                    <button class="btn btn-warn" onclick='loadRaceToControl(${dataStr})'>⏱️ Carregar</button>
+                </div>
+            `;
             list.appendChild(li);
         });
+    };
+
+    window.loadRaceToControl = (data) => {
+        if(!confirm(`Carregar a corrida "${data.raceName}" no painel principal?`)) return;
+        
+        // Puxa os dados originais se existirem (para restaurar IDs e laps raw), senão usa o array drivers
+        const driversToLoad = data.originalDrivers || data.drivers.map(d => ({
+            id: d.id || Date.now() + Math.random(),
+            name: d.name, number: d.number, transponder: d.transponder || "",
+            laps: d.lapsRaw || [], manualBest: d.manualBest || null,
+            manualLaps: d.manualLaps !== undefined ? d.manualLaps : null,
+            manualPosition: d.manualPosition || null, gender: d.gender || null, age: d.age || null
+        }));
+
+        state.drivers = driversToLoad;
+        state.circuit = data.circuit;
+        state.isRunning = false;
+        state.elapsedTime = data.rawElapsedTime || 0;
+        state.raceStartTime = Date.now() - state.elapsedTime;
+        clearInterval(state.timerInterval);
+
+        // Preenche inputs
+        document.getElementById('raceNameInput').value = data.raceName;
+        document.getElementById('raceResponsibleInput').value = data.responsible || "";
+        document.getElementById('mainTimer').innerText = formatTime(state.elapsedTime);
+        
+        // Atualiza a seleção da pista no combo (se houver id)
+        const sel = document.getElementById('raceCircuitSelect');
+        for(let i=0; i<sel.options.length; i++){
+            if(sel.options[i].value && JSON.parse(sel.options[i].value).name === data.circuit.name) {
+                sel.selectedIndex = i; break;
+            }
+        }
+
+        switchTab('race');
+        updateUI(); 
+        syncLive();
     };
 
     window.viewResult = (data) => {
         document.getElementById('shareRaceName').innerText = data.raceName;
         document.getElementById('shareCircuitInfo').innerText = `Pista: ${data.circuit.name} | Extensão: ${data.circuit.length}m`;
-        let globalBest = data.drivers.reduce((prev, curr) => (prev.bestLapMs < curr.bestLapMs) ? prev : curr, {bestLapMs: Infinity});
-        const header = document.getElementById('shareBestLapHeader');
-        if(globalBest.bestLapMs !== Infinity) header.innerText = `Melhor Volta da Corrida: ${globalBest.bestLapDisplay} (#${globalBest.number} ${globalBest.name})`;
-        else header.innerText = "Melhor Volta da Corrida: --:--.--- (--)";
         const tb = document.getElementById('shareTableBody'); tb.innerHTML = '';
         data.drivers.forEach((d, i) => {
             tb.innerHTML += `<tr><td>${i+1}º</td><td>#${d.number} ${d.name}</td><td>${d.bestLapIdx}</td><td>${d.bestLapDisplay}</td><td>${formatTime(d.totalMs)}</td><td>${d.dl}</td><td>${d.da}</td><td>${d.laps}</td><td>${d.avgSpd.toFixed(1)}</td></tr>`;
@@ -846,13 +939,81 @@
         el.style.visibility = "hidden"; el.style.top = "-9999px";
     };
 
+    let currentRankingData = [];
+    window.loadRankings = async () => {
+        const startDate = document.getElementById('rankStartDate').value;
+        const endDate = document.getElementById('rankEndDate').value;
+        const circuitName = document.getElementById('rankCircuitSelect').value;
+        const minTimeStr = document.getElementById('rankMinTime').value;
+        const maxTimeStr = document.getElementById('rankMaxTime').value;
+        const gender = document.getElementById('rankGender').value;
+        const minAge = document.getElementById('rankMinAge').value ? parseInt(document.getElementById('rankMinAge').value) : null;
+        const maxAge = document.getElementById('rankMaxAge').value ? parseInt(document.getElementById('rankMaxAge').value) : null;
+        const limit = parseInt(document.getElementById('rankLimit').value);
+        const tb = document.querySelector('#rankingTable tbody');
+        tb.innerHTML = '<tr><td colspan="5" style="text-align:center;">Buscando...</td></tr>';
+        let qry = query(collection(db, "races"), orderBy("date", "desc"));
+        const snap = await getDocs(qry);
+        let uniquePilots = {};
+        snap.forEach(docSnap => {
+            const race = docSnap.data();
+            if (circuitName && race.circuit.name !== circuitName) return;
+            if (startDate && race.date.toDate() < new Date(startDate)) return;
+            if (endDate && race.date.toDate() > new Date(endDate + "T23:59:59")) return;
+            race.drivers.forEach(d => {
+                if (gender !== 'all' && d.gender !== gender) return;
+                if (minAge && (!d.age || d.age < minAge)) return;
+                if (maxAge && (!d.age || d.age > maxAge)) return;
+                if (!d.bestLapMs || d.bestLapMs === Infinity) return;
+                if (minTimeStr && d.bestLapMs < parseTimeStr(minTimeStr)) return;
+                if (maxTimeStr && d.bestLapMs > parseTimeStr(maxTimeStr)) return;
+                const pilotName = d.name.trim().toUpperCase();
+                if (!uniquePilots[pilotName] || d.bestLapMs < uniquePilots[pilotName].bestLapMs) {
+                    uniquePilots[pilotName] = { name: d.name, bestLapMs: d.bestLapMs, displayTime: d.bestLapDisplay, date: race.date.toDate(), raceName: race.raceName };
+                }
+            });
+        });
+        currentRankingData = Object.values(uniquePilots).sort((a, b) => a.bestLapMs - b.bestLapMs).slice(0, limit);
+        tb.innerHTML = "";
+        currentRankingData.forEach((d, i) => {
+            tb.innerHTML += `<tr><td style="font-weight:bold; color:var(--primary)">${i+1}º</td><td>${d.name}</td><td>${d.displayTime}</td><td>${d.date.toLocaleDateString()}</td><td>${d.raceName}</td></tr>`;
+        });
+    };
+
+    window.generateRankingImage = async (format) => {
+        if(currentRankingData.length === 0) return alert("Gere uma lista primeiro!");
+        const containerId = format === 'feed' ? 'exportFeed' : 'exportStory';
+        const listBodyId = format === 'feed' ? 'feedListBody' : 'storyListBody';
+        const container = document.getElementById(containerId);
+        const listBody = document.getElementById(listBodyId);
+        listBody.innerHTML = "";
+        const limitDisplay = format === 'feed' ? Math.min(currentRankingData.length, 10) : Math.min(currentRankingData.length, 15);
+        for(let i=0; i<limitDisplay; i++) {
+            const d = currentRankingData[i];
+            const div = document.createElement('div');
+            div.className = `ranking-row top-${i+1}`;
+            div.innerHTML = `<div class="rank-pos">${i+1}º</div><div class="rank-name">${d.name}</div><div class="rank-time">${d.displayTime}</div>`;
+            listBody.appendChild(div);
+        }
+        container.style.visibility = "visible"; container.style.position = "fixed"; container.style.top = "0"; container.style.left = "0"; container.style.zIndex = "1000";
+        const canvas = await html2canvas(container, { backgroundColor: null, scale: 1, useCORS: true });
+        const link = document.createElement('a'); link.download = `ranking_speedkart_${format}.png`; link.href = canvas.toDataURL(); link.click();
+        container.style.visibility = "hidden"; container.style.top = "-9999px";
+    };
+
     function formatTime(ms) {
         if(!ms || ms === Infinity || ms < 0) return "00:00.000";
         let m = Math.floor(ms/60000), s = Math.floor((ms%60000)/1000), ms_ = Math.floor(ms%1000);
         return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}.${ms_.toString().padStart(3,'0')}`;
     }
 
-    window.onload = () => { loadCircuits(); loadHistory(); listenBookings(); };
+    window.onload = () => { 
+        loadCircuits(); listenBookings(); 
+        const hoje = new Date().toISOString().split('T')[0];
+        document.getElementById('histStart').value = hoje;
+        document.getElementById('histEnd').value = hoje;
+        loadHistory(); 
+    };
 </script>
 </body>
 </html>
