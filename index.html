@@ -533,15 +533,34 @@
         const val = document.getElementById('bookingSelect').value;
         if(!val) return alert("Selecione uma bateria!");
         const data = JSON.parse(val);
+
+        // --- NOVA LÓGICA: Preservar números dos karts ---
+        const previousKarts = {};
+        if (state.drivers && state.drivers.length > 0) {
+            state.drivers.forEach(d => {
+                if(d.name && d.number) previousKarts[d.name.trim().toLowerCase()] = d.number;
+            });
+        }
+        // -----------------------------------------------
+
         state.currentBookingId = data.id;
         document.getElementById('raceNameInput').value = data.raceName;
         document.getElementById('raceResponsibleInput').value = data.responsible || "";
         document.getElementById('raceMode').value = data.mode || "corrida";
-        state.drivers = data.drivers.map(p => ({
-            id: Date.now() + Math.random(), number: "", transponder: "", name: p.name,
-            laps: [], manualBest: null, manualLaps: null, manualPosition: null, gender: null, age: null
-        }));
-        updateUI(); alert("Bateria carregada!");
+        
+        state.drivers = data.drivers.map(p => {
+            // Verifica se este piloto já estava na bateria anterior e recupera o número
+            const savedNumber = previousKarts[p.name.trim().toLowerCase()] || "";
+            
+            return {
+                id: Date.now() + Math.random(), 
+                number: savedNumber, // Aplica o número salvo
+                transponder: "", 
+                name: p.name,
+                laps: [], manualBest: null, manualLaps: null, manualPosition: null, gender: null, age: null
+            };
+        });
+        updateUI(); alert("Bateria carregada! (Karts mantidos para pilotos repetidos)");
     };
 
     window.checkManualAccess = () => {
