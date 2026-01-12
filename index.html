@@ -970,30 +970,63 @@
         const maxAge = document.getElementById('rankMaxAge').value ? parseInt(document.getElementById('rankMaxAge').value) : null;
         const limit = parseInt(document.getElementById('rankLimit').value);
         const tb = document.querySelector('#rankingTable tbody');
-        tb.innerHTML = '<tr><td colspan="5" style="text-align:center;">Buscando...</td></tr>';
+        tb.innerHTML = '<tr><td colspan="5" style="text-align:center;">Buscando dados (Corridas e Clientes)...</td></tr>';
+        
+        // 1. Buscar todos os Clientes para mapear o gênero (Integração com Caixa)
+        const clientsSnap = await getDocs(collection(db, "clientes"));
+        const clientMap = {};
+        clientsSnap.forEach(c => {
+            const cd = c.data();
+            if(cd.nome) {
+                // Normaliza o nome para busca (minúsculo, sem espaços extras)
+                clientMap[cd.nome.trim().toLowerCase()] = cd.genero; 
+            }
+        });
+
+        // 2. Buscar Corridas
         let qry = query(collection(db, "races"), orderBy("date", "desc"));
         const snap = await getDocs(qry);
         let uniquePilots = {};
+
         snap.forEach(docSnap => {
             const race = docSnap.data();
             if (circuitName && race.circuit.name !== circuitName) return;
             if (startDate && race.date.toDate() < new Date(startDate)) return;
             if (endDate && race.date.toDate() > new Date(endDate + "T23:59:59")) return;
+            
             race.drivers.forEach(d => {
-                if (gender !== 'all' && d.gender !== gender) return;
+                // Tenta pegar o gênero da corrida, se não tiver, pega do mapa de clientes
+                let pilotGender = d.gender;
+                if(!pilotGender) {
+                    const gFromClient = clientMap[d.name.trim().toLowerCase()];
+                    // Converte o formato do Caixa ("Masculino"/"Feminino") para o formato do filtro ("M"/"F")
+                    if(gFromClient === "Masculino") pilotGender = "M";
+                    else if(gFromClient === "Feminino") pilotGender = "F";
+                }
+
+                if (gender !== 'all' && pilotGender !== gender) return;
+                
                 if (minAge && (!d.age || d.age < minAge)) return;
                 if (maxAge && (!d.age || d.age > maxAge)) return;
                 if (!d.bestLapMs || d.bestLapMs === Infinity) return;
                 if (minTimeStr && d.bestLapMs < parseTimeStr(minTimeStr)) return;
                 if (maxTimeStr && d.bestLapMs > parseTimeStr(maxTimeStr)) return;
+                
                 const pilotName = d.name.trim().toUpperCase();
                 if (!uniquePilots[pilotName] || d.bestLapMs < uniquePilots[pilotName].bestLapMs) {
                     uniquePilots[pilotName] = { name: d.name, bestLapMs: d.bestLapMs, displayTime: d.bestLapDisplay, date: race.date.toDate(), raceName: race.raceName };
                 }
             });
         });
+        
         currentRankingData = Object.values(uniquePilots).sort((a, b) => a.bestLapMs - b.bestLapMs).slice(0, limit);
+        
         tb.innerHTML = "";
+        if(currentRankingData.length === 0) {
+            tb.innerHTML = '<tr><td colspan="5" style="text-align:center;">Nenhum tempo encontrado com estes filtros.</td></tr>';
+            return;
+        }
+
         currentRankingData.forEach((d, i) => {
             tb.innerHTML += `<tr><td style="font-weight:bold; color:var(--primary)">${i+1}º</td><td>${d.name}</td><td>${d.displayTime}</td><td>${d.date.toLocaleDateString()}</td><td>${d.raceName}</td></tr>`;
         });
