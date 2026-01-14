@@ -120,6 +120,19 @@
         #exportFeed { width: 1080px; height: 1080px; }
         #exportStory { width: 1080px; height: 1920px; justify-content: start; padding-top: 150px; }
 
+        /* AJUSTE ESPECÍFICO PARA O FEED CABER 10 ITENS */
+        #exportFeed { padding: 25px; } /* Reduz padding geral */
+        #exportFeed .speed-kart-title { font-size: 5rem; margin-bottom: 5px; } /* Título levemente menor */
+        #exportFeed .ranking-subtitle { margin-bottom: 15px; font-size: 1.8rem; } /* Subtítulo mais próximo */
+        #exportFeed .ranking-row { 
+            margin-bottom: 8px; /* Menos espaço entre linhas */
+            padding: 8px 25px; /* Linhas mais finas */
+        }
+        #exportFeed .rank-pos { font-size: 1.9rem; }
+        #exportFeed .rank-name { font-size: 1.6rem; }
+        #exportFeed .rank-time { font-size: 1.8rem; }
+        /* FIM DO AJUSTE */
+
         .legend { margin-top: 20px; font-size: 10px; color: #aaa; display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; border-top: 1px solid #333; padding-top: 10px; }
 
         .race-split-container { display: flex; gap: 20px; height: calc(100vh - 40px); }
